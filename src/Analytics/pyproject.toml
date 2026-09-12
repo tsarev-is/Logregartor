@@ -10,8 +10,14 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+api = ["uvicorn>=0.30,<1"]
+
 [project.scripts]
 logregartor-analytics = "log_analytics.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["log_analytics*"]
+
+[tool.setuptools.package-data]
+log_analytics = ["sql/*.sql"]
