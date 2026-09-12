@@ -90,6 +90,9 @@ class ClickHouse:
 
     def migrate(self):
         self.execute(f"CREATE DATABASE IF NOT EXISTS `{self.database}`", use_database=False)
-        for statement in files("log_analytics").joinpath("sql/001_initial.sql").read_text().split(";"):
-            if statement.strip():
-                self.execute(statement)
+        directory = files("log_analytics").joinpath("sql")
+        for migration in sorted(directory.iterdir(), key=lambda path: path.name):
+            if migration.name.endswith(".sql"):
+                for statement in migration.read_text().split(";"):
+                    if statement.strip():
+                        self.execute(statement)

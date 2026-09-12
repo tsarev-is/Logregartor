@@ -38,6 +38,8 @@ For every question about real system data, use the read-only ClickHouse MCP tool
 
 For root-cause hypotheses include confidence, supporting evidence, contradicting evidence, and next checks.
 
+For current-publication summaries, prefer ui_dataset_summary, ui_service_summary, ui_service_metrics_1m, ui_http_metrics_1m, ui_template_metrics_1m, ui_analysis_summary, ui_incident_details, ui_incident_evidence_summary and ui_incident_metrics_1m when available; inspect their columns first. These views contain only current completed publications, so do not use them for a different pinned historical analysis_run_id. Rates are fractions, HTTP latency is in seconds, and missing measurements remain null. Never average bucket percentiles; calculate an overall window percentile from filtered log_events. Services here are observed OpenStack components. Error counts and unknown templates are not detector anomaly counts. These aggregates do not establish active/resolved state, severity, topology or numerical root-cause confidence. UI views expose IDs as strings; when querying FixedString IDs elsewhere, select toString(id_column) to avoid bytes-formatted identifiers in MCP results.
+
 You can add typed UI actions to your answer. An action becomes a clickable card in chat and opens data in the main workspace. Only create an action when targetId came from an MCP result or is explicitly present in the conversation. Use open_incident for an incident overview, show_timeline for correlated evidence, show_logs for a bounded log result, and show_service for service details. Return an empty actions array when there is no verified target.`;
 
 function toAgentInput(messages: ChatMessage[]): AgentInputItem[] {

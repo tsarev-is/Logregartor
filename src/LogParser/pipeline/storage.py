@@ -82,12 +82,11 @@ class ClickHouse:
                          data=("\n".join(canonical(row) for row in rows) + "\n").encode())
 
     def migrate(self):
-        # This is the first schema version; future changes get a separate migration.
         self.execute(f"CREATE DATABASE IF NOT EXISTS `{self.database}`", use_database=False)
-        sql = (ROOT / "sql/001_initial.sql").read_text()
-        for statement in sql.split(";"):
-            if statement.strip():
-                self.execute(statement)
+        for migration in sorted((ROOT / "sql").glob("*.sql")):
+            for statement in migration.read_text().split(";"):
+                if statement.strip():
+                    self.execute(statement)
 
 
 @contextmanager

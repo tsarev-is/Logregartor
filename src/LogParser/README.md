@@ -166,7 +166,8 @@ precision **0,998982**, recall **1,0**, F1 **0,999491**, grouping accuracy **0,9
 окружение; `.env` автоматически читает только Compose. Секреты не передавайте
 в URL или аргументах команд.
 
-Первый `load` применяет [SQL v1](sql/001_initial.sql) к выбранной базе.
+Каждый `load` применяет SQL-миграции из `sql/` по порядку имени к выбранной базе,
+включая [схему v1](sql/001_initial.sql) и [агрегаты UI](../../docs/UI_AGGREGATES.md).
 `log_events_raw` и `event_templates_raw` содержат изолированные попытки загрузки;
 `ingestion_runs` хранит записи `started` и `completed`. Представление
 `current_ingestions` выбирает последнюю завершённую попытку на

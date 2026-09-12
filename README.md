@@ -57,6 +57,10 @@ MCP endpoint: `http://127.0.0.1:8000/mcp`, транспорт Streamable HTTP,
 Сервер использует отдельного пользователя ClickHouse только для чтения.
 Настройка, подключение researcher и примеры запросов: [MCP ClickHouse](docs/MCP_CLICKHOUSE.md).
 
+Схемы и девять представлений для метрик, графиков, шаблонов и инцидентов создаёт
+`clickhouse-init`. Для существующей базы: `docker compose run --rm clickhouse-init`.
+Покрытие UI и семантика показателей: [агрегаты ClickHouse](docs/UI_AGGREGATES.md).
+
 UI можно запустить отдельно, без базы и MCP:
 
 ```bash

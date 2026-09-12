@@ -122,6 +122,24 @@ class ClickHouseIntegrationTests(unittest.TestCase):
         self.assertEqual(event["raw_text"] + event["line_ending"], self.target.read_text().splitlines(keepends=True)[3])
         self.assertEqual(self.client.rows("SELECT count() AS n FROM incidents WHERE dataset_id={dataset:String}",
                                          {"dataset": self.dataset})[0]["n"], 1)
+        detail = self.client.rows("SELECT * FROM ui_incident_details WHERE dataset_id={dataset:String}",
+                                  {"dataset": self.dataset})[0]
+        self.assertEqual(detail["incident_id"], card["incident_id"])
+        types = self.client.rows("SELECT toTypeName(incident_id) AS id_type, "
+                                 "toTypeName(source_sha256) AS source_type FROM ui_incident_details LIMIT 1")[0]
+        self.assertEqual(types, {"id_type": "String", "source_type": "String"})
+        self.assertEqual(detail["observed_seconds"], 51.59)
+        self.assertEqual(detail["event_time"], "2017-05-14 21:43:04.123456789")
+        evidence = self.client.rows("SELECT * FROM ui_incident_evidence_summary WHERE dataset_id={dataset:String}",
+                                    {"dataset": self.dataset})[0]
+        self.assertEqual(evidence["evidence_count"], 4)
+        self.assertEqual(evidence["affected_service_count"], 3)
+        self.assertEqual(evidence["affected_services"],
+                         ["nova.compute.claims", "nova.compute.manager", "nova.virt.libvirt.driver"])
+        minute = self.client.rows("SELECT * FROM ui_incident_metrics_1m WHERE dataset_id={dataset:String}",
+                                  {"dataset": self.dataset})[0]
+        self.assertEqual(minute["anomaly_count"], 1)
+        self.assertEqual(minute["affected_instance_count"], 1)
 
     def test_repeat_zero_replacement_and_historical_snapshot(self):
         first = run(self.client, self.config)
@@ -131,6 +149,14 @@ class ClickHouseIntegrationTests(unittest.TestCase):
         self.assertEqual(Store(self.client).current_report(self.dataset), empty)
         self.assertEqual(self.client.rows("SELECT count() AS n FROM incidents WHERE dataset_id={dataset:String}",
                                          {"dataset": self.dataset})[0]["n"], 0)
+        summary = self.client.rows("SELECT * FROM ui_analysis_summary WHERE dataset_id={dataset:String}",
+                                   {"dataset": self.dataset})[0]
+        self.assertEqual(summary["analysis_run_id"], empty["analysis_run_id"])
+        self.assertEqual(summary["anomaly_count"], 0)
+        self.assertEqual(summary["completed_instances"], empty["completed_instances"])
+        for view in ("ui_incident_details", "ui_incident_evidence_summary", "ui_incident_metrics_1m"):
+            self.assertEqual(self.client.rows(f"SELECT * FROM {view} WHERE dataset_id={{dataset:String}}",
+                                              {"dataset": self.dataset}), [])
         card = first["incidents"][0]
         self.assertEqual(Store(self.client).incident(card["incident_id"], first["analysis_run_id"])[0], card)
         self.assertEqual(run(self.client, self.config), first)
