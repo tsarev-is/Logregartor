@@ -1,0 +1,7 @@
+.git
+.next
+node_modules
+npm-debug.log
+.env
+.env.local
+AI_Powered_Observability_Hackathon_1.pdf

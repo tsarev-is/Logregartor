@@ -1,4 +1,29 @@
 services:
+  ui:
+    build:
+      context: ./src/ui
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4}
+      MCP_SERVER_URL: ${MCP_SERVER_URL:-}
+      MCP_AUTHORIZATION: ${MCP_AUTHORIZATION:-}
+    ports:
+      - "${UI_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:3000/api/health
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   clickhouse:
     image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.3.29.7}
     restart: unless-stopped

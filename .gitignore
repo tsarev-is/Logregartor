@@ -8,6 +8,9 @@
 *.out
 bin/
 /src/LogParser/LogParser/logparser
+/LogParser/logparser
+/src/LogParser/logparser
+*.tsbuildinfo
 
 # JetBrains
 .idea/
