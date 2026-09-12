@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, ArrowUpRight, Bot, Database, Menu, MessageSqua
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ChatReplySchema, type UiAction } from "@/lib/chat-contract";
 import { LiveLogExplorer } from "@/components/live-log-explorer";
+import { formatUtc } from "@/lib/format-utc";
 import {
   DatasetsSchema, EvidenceSchema, IncidentSchema, ReportSchema, TimelineSchema, snapshotQuery,
   type AnalysisReport, type Dataset, type Evidence, type Incident, type Timeline,
@@ -144,7 +145,8 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
   }
   function openIncident(incident: Incident) {
     openAction({ kind: "open_incident", targetId: incident.incident_id, datasetId: incident.dataset_id,
-      analysisRunId: incident.analysis_run_id, title: "Slow VM build", label: "Open incident", description: incident.instance_id });
+      analysisRunId: incident.analysis_run_id, title: "Slow VM build", label: "Open incident",
+      description: `Build completed in ${seconds(incident.observed_seconds)}, exceeding the ${seconds(incident.threshold_seconds)} threshold.` });
   }
   function openEvidence(id: string) {
     if (card) setEventReference({ id, run: card.analysis_run_id, dataset: card.dataset_id });
@@ -210,7 +212,19 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
             {report && <>
               <div className="metrics-grid">{[["Incidents", report.incidents.length], ["Completed VMs", report.completed_instances], ["Incomplete VMs", report.incomplete_instances], ["Events analyzed", report.events_read]].map(([label, value]) => <article className="metric-card" key={label}><span className="metric-label">{label}</span><div className="metric-value"><strong>{value}</strong></div></article>)}</div>
               {!report.incidents.length ? <p className="data-notice">No builds exceeded {seconds(report.threshold_seconds)} in this publication.</p> :
-                <div className="incident-list panel">{report.incidents.map((incident, index) => <button className={`incident-row ${card?.incident_id === incident.incident_id ? "selected" : ""}`} key={incident.incident_id} onClick={() => openIncident(incident)}><span className="incident-rank">{index + 1}</span><span><strong>{incident.instance_id}</strong><small>{incident.event_time ?? "Time unavailable"} · source {short(incident.source_sha256)}</small></span><span className="incident-duration">{seconds(incident.observed_seconds)}<small>+{seconds(incident.excess_seconds)}</small></span><ArrowUpRight size={16} /></button>)}</div>}
+                <div className="incident-list panel">{report.incidents.map((incident, index) => (
+                  <button className={`incident-row ${card?.incident_id === incident.incident_id ? "selected" : ""}`} key={incident.incident_id} onClick={() => openIncident(incident)}>
+                    <span className="incident-rank">{index + 1}</span>
+                    <span className="incident-copy">
+                      <strong>Slow VM build · {seconds(incident.observed_seconds)}</strong>
+                      <span className="incident-summary">Build completed above the {seconds(incident.threshold_seconds)} threshold.</span>
+                      <small>{incident.event_time ? formatUtc(incident.event_time) : "Time unavailable"}</small>
+                      <small title={`VM: ${incident.instance_id}\nSource: ${incident.source_sha256}`}>VM {short(incident.instance_id)} · source {short(incident.source_sha256)}</small>
+                    </span>
+                    <span className="incident-duration">+{seconds(incident.excess_seconds)}<small>over threshold</small></span>
+                    <ArrowUpRight size={16} />
+                  </button>
+                ))}</div>}
               <p className="snapshot-note">List snapshot: <code>{report.analysis_run_id}</code> · threshold {seconds(report.threshold_seconds)}</p>
             </>}
             {detailLoading && <p role="status">Loading incident evidence…</p>}
@@ -241,7 +255,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
           </section>
           <aside className="copilot" id="copilot">
             <div className="copilot-header"><div className="copilot-icon"><Bot size={19} /></div><div><strong>Incident copilot</strong><span className={aiReady ? "" : "offline"}><i />{aiReady ? mcpReady ? "AI + MCP connected" : "AI configured" : "AI not configured"}</span></div></div>
-            <div className="context-chip"><AlertTriangle size={14} /><span>Context</span><strong>{card ? short(card.incident_id) : dataset || "No dataset"}</strong></div>
+            <div className="context-chip"><AlertTriangle size={14} /><span>Context</span><strong>{card ? `Slow build · ${seconds(card.observed_seconds)}` : dataset || "No dataset"}</strong></div>
             <div className="messages">{messages.map((message, index) => <div className={`message ${message.role}`} key={index}>{message.role === "assistant" && <div className="message-avatar"><Sparkles size={14} /></div>}<div className="bubble">{message.content || <span className="typing"><i /><i /><i /></span>}{message.actions?.map((action) => <button className="ui-action-card" key={`${action.kind}-${action.targetId}-${action.analysisRunId}`} onClick={() => openAction(action)}><span className="ui-action-icon"><ArrowUpRight size={15} /></span><span className="ui-action-copy"><strong>{action.title}</strong><small>{action.description}</small><b>{action.label}</b></span></button>)}</div></div>)}<div ref={chatEnd} /></div>
             <div className="prompt-list">{quickPrompts.map((prompt) => <button key={prompt} onClick={() => void sendMessage(prompt)} disabled={sending || !aiReady}>{prompt}<ArrowUpRight size={14} /></button>)}</div>
             <form className="composer" onSubmit={submit}><textarea aria-label="Investigation question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Ask about this incident…" rows={2} maxLength={10_000} /><div><span>{mcpReady ? "Read-only MCP tools enabled" : mcpConfigured ? "MCP unavailable" : "Selected Analytics context"}</span><button type="submit" disabled={sending || !input.trim() || !aiReady} aria-label="Send message"><Send size={16} /></button></div></form>
