@@ -17,12 +17,10 @@ export function LiveLogExplorer({
   dataset,
   initialQuery = "",
   initialComponent = "",
-  onFilterService,
 }: {
   dataset: string;
   initialQuery?: string;
   initialComponent?: string;
-  onFilterService?: (service: string) => void;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
@@ -35,16 +33,6 @@ export function LiveLogExplorer({
   const [loading, setLoading] = useState(Boolean(dataset));
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
-
-  useEffect(() => {
-    setQuery(initialQuery);
-    setDebouncedQuery(initialQuery);
-    setComponent(initialComponent);
-    setLevel("");
-    setSource("");
-    setOffset(0);
-    setSelected(null);
-  }, [dataset, initialQuery, initialComponent]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -98,7 +86,6 @@ export function LiveLogExplorer({
   function applyService(service: string) {
     setComponent(service);
     setOffset(0);
-    onFilterService?.(service);
   }
 
   function reset() {
@@ -109,7 +96,6 @@ export function LiveLogExplorer({
     setComponent("");
     setOffset(0);
     setSelected(null);
-    onFilterService?.("");
   }
 
   return (

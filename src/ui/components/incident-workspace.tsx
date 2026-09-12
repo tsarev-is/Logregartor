@@ -238,7 +238,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
           <button type="button" className={`nav-item ${mainView === "services" ? "active" : ""}`} onClick={() => { setMainView("services"); setMobileNav(false); }}><Server size={18} /> Services <span className="nav-count">{services.length || "—"}</span></button>
           <a className="nav-item" href="#timeline" onClick={openIncidents}><Activity size={18} /> Evidence timeline</a>
           <a className="nav-item" href="#explorer" onClick={openIncidents}><TerminalSquare size={18} /> Source record</a>
-          <button type="button" className={`nav-item ${mainView === "logs" ? "active" : ""}`} onClick={() => openLogs()}><Database size={18} /> Live logs</button>
+          <button type="button" className={`nav-item ${mainView === "logs" ? "active" : ""}`} onClick={() => openLogs({ query: "", component: "" })}><Database size={18} /> Live logs</button>
           <a className="nav-item" href="#copilot"><MessageSquareText size={18} /> AI copilot</a>
         </nav>
         <div className="connection-card"><div className="connection-head"><Database size={17} /> Evidence source</div><strong>Analytics publications</strong><div className={`connection-status ${discoveryError ? "offline" : ""}`}><i /> {discovering ? "Checking data…" : discoveryError ? "Unavailable" : "Connected · read only"}</div></div>
@@ -248,16 +248,16 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
         <header className="topbar"><button className="icon-button menu-button" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={20} /></button><div className="breadcrumbs"><span>Workspace</span><b>/</b><strong>{mainView === "logs" ? logComponent || "Live logs" : mainView === "services" ? "Services" : dataset || "No dataset"}</strong></div><span className="status-pill preview">{mainView === "incidents" ? "Published snapshot" : "Read only"}</span></header>
         <div className="workspace">
           <section className="incident-column" id="incidents">
-            {mainView === "logs" ? <LiveLogExplorer dataset={dataset} initialQuery={logQuery} initialComponent={logComponent} onFilterService={setLogComponent} /> : mainView === "services" ? <>
-            <label className="dataset-picker">Dataset <select value={dataset} onChange={(event) => { setDataset(event.target.value); setSelectedView(null); setEventReference(null); }} disabled={!datasets.length}>
+            {mainView === "logs" ? <LiveLogExplorer key={`${dataset}|${logQuery}|${logComponent}`} dataset={dataset} initialQuery={logQuery} initialComponent={logComponent} /> : mainView === "services" ? <>
+            <div className="incident-heading"><label className="dataset-picker">Dataset <select value={dataset} onChange={(event) => { setDataset(event.target.value); setSelectedView(null); setEventReference(null); setLogQuery(""); setLogComponent(""); }} disabled={!datasets.length}>
               {!datasets.length && <option value="">No published datasets</option>}
               {dataset && !datasets.some((item) => item.dataset_id === dataset) && <option value={dataset}>{dataset}</option>}
               {datasets.map((item) => <option key={item.dataset_id} value={item.dataset_id}>{item.dataset_id}</option>)}
-            </select></label>
+            </select></label><button className="secondary-button" onClick={() => setRefresh((value) => value + 1)} disabled={servicesLoading}>Refresh</button></div>
             <ServiceCatalog dataset={dataset} services={services} loading={servicesLoading} error={servicesError} onOpenService={(service) => openLogs({ component: service })} />
             </> : <>
             <div className="incident-heading"><div><span className="panel-kicker">OPENSTACK INVESTIGATION</span><h1>Slow VM builds</h1><p>Inspect completed builds, their stages and original evidence.</p></div><button className="secondary-button" onClick={() => setRefresh((value) => value + 1)} disabled={discovering || reportLoading}>Refresh</button></div>
-            <label className="dataset-picker">Dataset <select value={dataset} onChange={(event) => { setDataset(event.target.value); setSelectedView(null); setEventReference(null); }} disabled={!datasets.length}>
+            <label className="dataset-picker">Dataset <select value={dataset} onChange={(event) => { setDataset(event.target.value); setSelectedView(null); setEventReference(null); setLogQuery(""); setLogComponent(""); }} disabled={!datasets.length}>
               {!datasets.length && <option value="">No published datasets</option>}
               {dataset && !datasets.some((item) => item.dataset_id === dataset) && <option value={dataset}>{dataset}</option>}
               {datasets.map((item) => <option key={item.dataset_id} value={item.dataset_id}>{item.dataset_id}</option>)}
