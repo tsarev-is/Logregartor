@@ -117,7 +117,7 @@ export function LiveLogExplorer({
           <div><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="message, event, request, instance or service" /></div>
         </label>
         <label><span>Severity</span><select value={level} onChange={(event) => { setLevel(event.target.value); setOffset(0); }}><option value="">All severities</option>{page?.facets.levels.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
-        <label><span>Service</span><select value={component} onChange={(event) => applyService(event.target.value)}><option value="">All services</option>{page?.facets.components.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
+        <label><span>Service</span><select name="log-service" value={component} onChange={(event) => applyService(event.target.value)}><option value="">All services</option>{page?.facets.components.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
         <label><span>Source</span><select value={source} onChange={(event) => { setSource(event.target.value); setOffset(0); }}><option value="">All source files</option>{page?.facets.sources.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
         <button type="button" className={styles.reset} onClick={reset}><Filter size={14} /> Reset</button>
       </div>

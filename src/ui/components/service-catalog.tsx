@@ -46,7 +46,7 @@ export function ServiceCatalog({
             <span>Service</span><span>Events</span><span>Errors</span><span>Error rate</span><span>UTC window</span>
           </div>
           {services.map((item) => (
-            <button type="button" className={styles.row} key={item.service} onClick={() => onOpenService(item.service)}>
+            <button type="button" className={styles.row} key={item.service} data-service={item.service} onClick={() => onOpenService(item.service)}>
               <span className={styles.name}><strong>{item.service}</strong><small>{item.httpLatencySampleCount ? `HTTP p95 ${item.httpP95Seconds === null ? "unavailable" : `${item.httpP95Seconds.toFixed(3)} s`}` : "No HTTP latency samples"}</small></span>
               <span>{count(item.eventCount)}</span>
               <span className={item.errorCount ? styles.errors : undefined}>{count(item.errorCount)}</span>

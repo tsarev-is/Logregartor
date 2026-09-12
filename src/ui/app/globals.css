@@ -210,6 +210,7 @@ h1 { margin: 9px 0 7px; font-size: clamp(25px, 2.25vw, 34px); line-height: 1.12;
 
 /* Published Analytics data, preserving long IDs and original log text. */
 .dataset-picker { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: var(--muted); font-size: 12px; }
+.incident-heading .dataset-picker { margin-bottom: 0; }
 .dataset-picker select { max-width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); }
 .data-notice { padding: 13px 15px; border: 1px solid #e4dfca; border-radius: 8px; background: #fffcf3; color: #786431; font-size: 12px; line-height: 1.6; }
 .data-notice.error { color: #a13e35; border-color: #efc9c5; background: #fff5f3; }
