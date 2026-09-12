@@ -25,3 +25,16 @@ docker compose up -d --wait clickhouse
 HTTP: `http://localhost:8123`, native: `localhost:9000`. База: `logs`, пользователь: `logregartor`, пароль для локальной разработки: `localdev`. Другие сервисы в этой Compose-сети подключаются к `clickhouse:8123` или `clickhouse:9000`.
 
 Версию образа, базу, учётные данные и порты можно переопределить переменными окружения `CLICKHOUSE_*`, указанными в [docker-compose.yml](docker-compose.yml). Данные хранятся в volume `clickhouse_data` и сохраняются после `docker compose down`.
+
+Для AI researcher добавлен официальный `mcp-clickhouse` версии `0.6.0`.
+После настройки двух секретов в локальном `.env` запустите:
+
+```bash
+docker compose --profile mcp up -d --build --wait mcp-clickhouse
+docker compose exec -T mcp-clickhouse python /app/smoke.py
+```
+
+MCP endpoint: `http://127.0.0.1:8000/mcp`, транспорт Streamable HTTP,
+авторизация `Authorization: Bearer <CLICKHOUSE_MCP_AUTH_TOKEN>`.
+Сервер использует отдельного пользователя ClickHouse только для чтения.
+Настройка, подключение researcher и примеры запросов: [MCP ClickHouse](docs/MCP_CLICKHOUSE.md).

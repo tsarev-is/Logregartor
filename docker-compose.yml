@@ -30,5 +30,60 @@ services:
       retries: 5
       start_period: 30s
 
+  mcp-clickhouse-init:
+    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-26.3.29.7}
+    profiles: [mcp]
+    restart: "no"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-logs}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-logregartor}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-localdev}
+      CLICKHOUSE_MCP_PASSWORD: ${CLICKHOUSE_MCP_PASSWORD:-}
+    entrypoint: ["/bin/bash", "/setup/init-user.sh"]
+    volumes:
+      - ./infra/mcp-clickhouse/init-user.sh:/setup/init-user.sh:ro
+
+  mcp-clickhouse:
+    build: ./infra/mcp-clickhouse
+    profiles: [mcp]
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      mcp-clickhouse-init:
+        condition: service_completed_successfully
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DB:-logs}
+      CLICKHOUSE_USER: logregartor_mcp
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_MCP_PASSWORD:-}
+      CLICKHOUSE_SECURE: "false"
+      CLICKHOUSE_ALLOW_WRITE_ACCESS: "false"
+      CLICKHOUSE_ALLOW_DROP: "false"
+      CHDB_ENABLED: "false"
+      CLICKHOUSE_MCP_SERVER_TRANSPORT: http
+      CLICKHOUSE_MCP_BIND_HOST: 0.0.0.0
+      CLICKHOUSE_MCP_BIND_PORT: "8000"
+      CLICKHOUSE_MCP_AUTH_TOKEN: ${CLICKHOUSE_MCP_AUTH_TOKEN:-}
+      CLICKHOUSE_MCP_ALLOWED_HOSTS: "127.0.0.1:${CLICKHOUSE_MCP_PORT:-8000},localhost:${CLICKHOUSE_MCP_PORT:-8000},127.0.0.1:8000,mcp-clickhouse:8000"
+      CLICKHOUSE_MCP_QUERY_TIMEOUT: "30"
+      CLICKHOUSE_MCP_MAX_WORKERS: "4"
+    ports:
+      - "127.0.0.1:${CLICKHOUSE_MCP_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).close()"
+      interval: 10s
+      timeout: 6s
+      retries: 5
+      start_period: 30s
+
 volumes:
   clickhouse_data:

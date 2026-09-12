@@ -148,6 +148,12 @@ flowchart LR
 
 ### 5.2. Storage: ClickHouse
 
+**Обновление реализации:** подключение researcher к ClickHouse через официальный
+`mcp-clickhouse` добавлено в Compose. Доступны discovery схемы и SQL только для чтения;
+параметры запуска и запросы агрегатов описаны в [MCP_CLICKHOUSE.md](MCP_CLICKHOUSE.md).
+Чат, специализированные инструменты расследования и materialized views остаются
+следующими этапами реализации.
+
 **Вход:** нормализованные события. **Выход:** фильтрация, хронология, агрегаты и эпизоды.
 
 Предложение таблиц: `log_events`, `event_templates`, `incidents`, `incident_evidence`, `ingestion_runs`; метки хранить отдельно для оценщика. Для событий использовать MergeTree с порядком по `(dataset_id, component, event_time, event_id)`; окончательную схему проверить на запросах по VM. Загружать пакетами через [JSONEachRow](https://clickhouse.com/docs/reference/formats/JSON/JSONEachRow).
