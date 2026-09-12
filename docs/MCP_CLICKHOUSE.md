@@ -2,12 +2,12 @@
 
 В Compose подключён официальный [ClickHouse/mcp-clickhouse](https://github.com/ClickHouse/mcp-clickhouse)
 из PyPI, версия `0.6.0`. MCP предоставляет инструменты доступа к данным;
-LLM, историю чата и цикл вызова инструментов реализует будущий backend researcher.
+LLM, историю чата и цикл вызова инструментов реализует серверный модуль UI через OpenAI Agents SDK.
 
 ```mermaid
 flowchart LR
     Chat[Dashboard: AI-чат] --> Researcher[Backend researcher / MCP-клиент]
-    Researcher --> MCP[mcp-clickhouse:8000/mcp]
+    Researcher[Next.js route / OpenAI Agents SDK] --> MCP[mcp-clickhouse:8000/mcp]
     MCP --> CH[(ClickHouse:8123)]
 ```
 
@@ -48,7 +48,7 @@ docker compose --profile mcp stop mcp-clickhouse
 
 Транспорт: **Streamable HTTP**. В запросах нужен заголовок
 `Authorization: Bearer <значение CLICKHOUSE_MCP_AUTH_TOKEN>`.
-Backend хранит токен у себя; браузер обращается к backend researcher.
+Next.js хранит токен у себя; браузер обращается только к `/api/chat`.
 Порт на машине можно изменить через `CLICKHOUSE_MCP_PORT` в `.env`.
 
 Пример вызова из Python-клиента FastMCP, уже установленного в контейнере MCP:

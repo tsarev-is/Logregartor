@@ -31,6 +31,10 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import type { ChatReply, UiAction } from "@/lib/chat-contract";
 
 type Message = { role: "user" | "assistant"; content: string; actions?: UiAction[] };
+type RuntimeStatus = {
+  aiConfigured: boolean;
+  mcp: { configured: boolean; connected: boolean; tools: string[] };
+};
 
 const initialMessages: Message[] = [
   {
@@ -68,11 +72,36 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [selectedView, setSelectedView] = useState<UiAction | null>(null);
+  const [aiReady, setAiReady] = useState(aiConfigured);
+  const [mcpReady, setMcpReady] = useState(false);
+  const [statusChecked, setStatusChecked] = useState(false);
   const chatEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     chatEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    let active = true;
+
+    void fetch("/api/status", { cache: "no-store" })
+      .then((response) => response.json() as Promise<RuntimeStatus>)
+      .then((status) => {
+        if (!active) return;
+        setAiReady(status.aiConfigured);
+        setMcpReady(status.mcp.connected);
+      })
+      .catch(() => {
+        if (active) setMcpReady(false);
+      })
+      .finally(() => {
+        if (active) setStatusChecked(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function sendMessage(text: string) {
     const content = text.trim();
@@ -83,7 +112,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
     setInput("");
     setSending(true);
 
-    if (!aiConfigured && content === "Open demo incident") {
+    if (!aiReady && content === "Open demo incident") {
       await new Promise((resolve) => window.setTimeout(resolve, 450));
       setMessages([
         ...nextMessages,
@@ -141,7 +170,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
         <nav className="primary-nav">
           <span className="nav-label">Workspace</span>
           <a className="nav-item" href="#overview"><LayoutDashboard size={18} /> Overview</a>
-          <a className="nav-item active" href="#incidents"><AlertTriangle size={18} /> Incidents <span className="nav-count">{mcpConfigured ? "3" : "—"}</span></a>
+          <a className="nav-item active" href="#incidents"><AlertTriangle size={18} /> Incidents <span className="nav-count">{mcpReady ? "3" : "—"}</span></a>
           <a className="nav-item" href="#explorer"><TerminalSquare size={18} /> Log explorer</a>
           <a className="nav-item" href="#topology"><GitBranch size={18} /> Topology</a>
           <span className="nav-label second">Intelligence</span>
@@ -151,8 +180,8 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
 
         <div className="connection-card">
           <div className="connection-head"><Database size={17} /><span>Evidence source</span></div>
-          <strong>{mcpConfigured ? "Observability MCP" : "Demo snapshot"}</strong>
-          <div className={`connection-status ${mcpConfigured ? "" : "offline"}`}><i /> {mcpConfigured ? "Connected · read only" : "Add MCP_SERVER_URL"}</div>
+          <strong>{mcpReady ? "Observability MCP" : "Demo snapshot"}</strong>
+          <div className={`connection-status ${mcpReady ? "" : "offline"}`}><i /> {mcpReady ? "Connected · read only" : statusChecked ? "MCP unavailable" : mcpConfigured ? "Checking MCP…" : "Add MCP_SERVER_URL"}</div>
         </div>
 
         <div className="sidebar-bottom">
@@ -170,7 +199,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
           <div className="top-actions">
             <label className="search-box"><Search size={17} /><input placeholder="Search logs, traces, services…" /><kbd>⌘ K</kbd></label>
             <button className="icon-button has-notification" aria-label="Notifications"><Bell size={18} /></button>
-            <button className={`status-pill ${mcpConfigured ? "" : "preview"}`}><i /> {mcpConfigured ? "Live" : "Preview"}</button>
+            <button className={`status-pill ${mcpReady ? "" : "preview"}`}><i /> {mcpReady ? "Live" : "Preview"}</button>
           </div>
         </header>
 
@@ -265,7 +294,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
 
           <aside className="copilot" id="copilot">
             <div className="copilot-header">
-              <div className="copilot-icon"><Bot size={19} /></div><div><strong>Incident copilot</strong><span className={mcpConfigured ? "" : "offline"}><i /> {mcpConfigured ? "Evidence connected" : "Demo mode"}</span></div>
+              <div className="copilot-icon"><Bot size={19} /></div><div><strong>Incident copilot</strong><span className={mcpReady ? "" : "offline"}><i /> {mcpReady ? "Evidence connected" : "Demo mode"}</span></div>
               <button className="icon-button" aria-label="Collapse copilot"><PanelLeftClose size={18} /></button>
             </div>
             <div className={`context-chip ${selectedView ? "" : "context-empty"}`}><AlertTriangle size={14} /><span>Context</span><strong>{selectedView?.targetId ?? "No active view"}</strong></div>
@@ -275,7 +304,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
                   {message.role === "assistant" && <div className="message-avatar"><Sparkles size={14} /></div>}
                   <div className="bubble">
                     {message.content || <span className="typing"><i /><i /><i /></span>}
-                    {message.role === "assistant" && message.content && index === 0 && <div className="mini-evidence"><Database size={14} /><span>{mcpConfigured ? "MCP ready" : "Demo context only"}</span></div>}
+                    {message.role === "assistant" && message.content && index === 0 && <div className="mini-evidence"><Database size={14} /><span>{mcpReady ? "MCP ready" : "Demo context only"}</span></div>}
                     {message.actions?.map((action) => (
                       <button className="ui-action-card" key={`${action.kind}-${action.targetId}`} onClick={() => openAction(action)}>
                         <span className="ui-action-icon">{action.kind === "open_incident" ? <AlertTriangle size={15} /> : action.kind === "show_service" ? <Server size={15} /> : <TerminalSquare size={15} />}</span>
@@ -292,7 +321,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
             </div>
             <form className="composer" onSubmit={submit}>
               <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Ask about this incident…" rows={2} />
-              <div><span>{mcpConfigured ? "MCP tools enabled" : aiConfigured ? "AI ready · MCP not configured" : "Add server environment variables"}</span><button type="submit" disabled={sending || !input.trim()} aria-label="Send message"><Send size={16} /></button></div>
+              <div><span>{mcpReady ? "MCP tools enabled" : aiReady ? "AI ready · MCP unavailable" : "Add server environment variables"}</span><button type="submit" disabled={sending || !input.trim()} aria-label="Send message"><Send size={16} /></button></div>
             </form>
             <p className="copilot-note">AI can make mistakes. Verify actions against the linked evidence.</p>
           </aside>

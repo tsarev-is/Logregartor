@@ -48,10 +48,10 @@ UI можно запустить отдельно, без базы и MCP:
 docker compose up -d --build --wait ui
 ```
 
-Он будет доступен на `http://localhost:3000`. Без OpenAI-конфигурации работает демонстрационный переход из чат-карточки в dashboard. Для реального чата скопируйте `.env.example` в `.env` и задайте `OPENAI_API_KEY`; доступ к данным включается через `MCP_SERVER_URL` и опциональный `MCP_AUTHORIZATION`.
+Он будет доступен на `http://localhost:3000`. Без OpenAI-конфигурации работает демонстрационный переход из чат-карточки в dashboard. Для реального чата скопируйте `.env.example` в `.env` и задайте `OPENAI_API_KEY`, `CLICKHOUSE_MCP_PASSWORD` и `CLICKHOUSE_MCP_AUTH_TOKEN`. Серверный OpenAI Agents SDK подключается напрямую к `mcp-clickhouse` по `MCP_SERVER_URL`; ключи и результаты MCP не передаются браузеру напрямую.
 
 Все сервисы запускаются одной командой:
 
 ```bash
-docker compose up -d --build --wait
+docker compose --profile mcp up -d --build --wait
 ```

@@ -1,5 +1,7 @@
 import { IncidentWorkspace } from "@/components/incident-workspace";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <IncidentWorkspace
