@@ -240,6 +240,11 @@ h1 { margin: 9px 0 7px; font-size: clamp(25px, 2.25vw, 34px); line-height: 1.12;
 .source-panel { padding: 20px; font-size: 12px; scroll-margin-top: 80px; }
 .raw-record { overflow-x: auto; padding: 16px; border-radius: 8px; color: #dce7ed; background: var(--sidebar); font: 11px/1.7 "JetBrains Mono", monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 #timeline, #incident-detail { scroll-margin-top: 80px; }
+.service-row { margin: 14px 0 16px; }
+.service-row > span { display: block; margin-bottom: 8px; color: #9aa1a7; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.service-row > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.service-chip { padding: 6px 9px; border: 1px solid #d7e1e6; border-radius: 14px; background: #f7fafc; color: #3f5563; font: 600 10px "JetBrains Mono", monospace; overflow-wrap: anywhere; }
+.service-chip:hover { border-color: #b9c7cf; background: #fff; }
 .context-chip { max-width: 100%; overflow-wrap: anywhere; }
 button:disabled { cursor: default; opacity: .5; }
 @media (min-width: 901px) { .workspace { grid-template-columns: minmax(0, 1fr) 330px; } }

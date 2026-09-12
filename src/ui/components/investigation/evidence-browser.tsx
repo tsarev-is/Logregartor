@@ -89,6 +89,7 @@ export function EvidenceBrowser({ investigation, view, selectedEvidenceId, templ
     setQuery("");
     setLevel("all");
     onSelectTemplate(null);
+    onSelectService(null);
   }
 
   return (

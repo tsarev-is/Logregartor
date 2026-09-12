@@ -6,7 +6,8 @@
 .kicker { display: flex; align-items: center; gap: 6px; color: #42805f; font-size: 9px; font-weight: 700; letter-spacing: .12em; }
 .refresh, .reset, .pagination button, .error button, .empty button, .inspectorHead button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; color: #53606a; background: #fff; font-size: 10px; font-weight: 600; }
 .refresh { padding: 9px 11px; }
-.controls { display: grid; grid-template-columns: minmax(240px, 1fr) 150px 220px auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 11px 11px 0 0; background: #fff; }
+.controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) 140px minmax(170px, 1fr) minmax(170px, 1fr) auto; align-items: end; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 11px 11px 0 0; background: #fff; }
+.textAction { display: inline-flex; margin-left: 8px; padding: 0; border: 0; background: transparent; color: #3f6f96; font-size: 8px; font-weight: 700; }
 .controls label { display: grid; gap: 6px; color: #7c858d; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
 .controls input, .controls select { min-width: 0; width: 100%; height: 36px; border: 1px solid #dce1e4; border-radius: 7px; background: #fafbfc; color: #34404a; font-size: 11px; }
 .controls select { padding: 0 8px; }

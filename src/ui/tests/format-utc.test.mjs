@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatUtc } from "../lib/format-utc.ts";
+import { formatUtc, formatUtcMillis } from "../lib/format-utc.ts";
 
 test("UTC formatter renders valid dates without conflicting Intl options", () => {
   const result = formatUtc("2026-09-12T14:32:01Z");
@@ -15,4 +15,10 @@ test("UTC formatter normalizes timezone offsets rather than using browser local 
 
 test("invalid source timestamps remain visible instead of crashing the panel", () => {
   assert.equal(formatUtc("not-a-valid-timestamp"), "not-a-valid-timestamp");
+});
+
+test("millisecond timestamps keep a visible empty state and valid UTC values", () => {
+  assert.equal(formatUtcMillis(null), "No timestamp");
+  assert.equal(formatUtcMillis(Number.NaN), "NaN");
+  assert.equal(formatUtcMillis(Date.parse("2026-09-12T14:32:01Z")), formatUtc("2026-09-12T14:32:01Z"));
 });
