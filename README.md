@@ -11,17 +11,15 @@
 flowchart LR
     L[Архив OpenStack] --> P[LogParser]
     P -->|log_events| C[(ClickHouse)]
-    C -->|чтение событий| A[Analytics]
-    A -->|запись incidents| C
-    D[Dashboard] --> A
+    D[Dashboard] --> A[Analytics]
+    A <-->|чтение событий / запись incidents| C
     D -.-> M[MCP researcher]
     M -.-> C
 ```
 
-LogParser публикует события. Analytics — один модуль: `run` пакетно читает
-`log_events` и асинхронно пишет `incidents`, `serve` синхронно читает снимок
-и отдаёт карточку, timeline и строку. Dashboard ходит только в Analytics.
-Пунктир — read-only контур researcher, не вход детектора.
+Между ClickHouse и Analytics одна двусторонняя связь: чтение `log_events` и
+пакетная запись `incidents`. Стрелка Dashboard — вызов `serve`, не третье
+ребро к базе. Пунктир — read-only контур researcher.
 
 Компоненты:
 
