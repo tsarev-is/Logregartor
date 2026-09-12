@@ -1,0 +1,357 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LogParser physical-line event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "parser_version",
+    "dataset_id",
+    "source_file",
+    "timezone_assumption",
+    "event_id",
+    "source_sha256",
+    "line_start",
+    "line_end",
+    "raw_text",
+    "message",
+    "line_ending",
+    "timestamp_raw",
+    "source_name",
+    "level",
+    "component",
+    "context_raw",
+    "request_id",
+    "instance_id",
+    "host",
+    "http_method",
+    "http_url",
+    "event_time",
+    "pid",
+    "http_response_bytes",
+    "http_status",
+    "http_duration_seconds",
+    "build_duration_seconds",
+    "spawn_duration_seconds",
+    "destroy_duration_seconds",
+    "parameters",
+    "parse_status",
+    "parse_errors",
+    "template_id",
+    "template_version",
+    "template_status",
+    "ingestion_run_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "parser_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timezone_assumption": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "line_start": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18446744073709552000
+    },
+    "line_end": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18446744073709552000
+    },
+    "raw_text": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "line_ending": {
+      "enum": [
+        "",
+        "\n",
+        "\r\n"
+      ]
+    },
+    "timestamp_raw": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "level": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "component": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context_raw": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "request_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "instance_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "host": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "http_method": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "http_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "event_time": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "pid": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "http_response_bytes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "http_status": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 100,
+      "maximum": 599
+    },
+    "http_duration_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "build_duration_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "spawn_duration_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "destroy_duration_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "parse_status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unparsed",
+        "empty"
+      ]
+    },
+    "parse_errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "template_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "template_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "template_status": {
+      "enum": [
+        "pending",
+        "matched",
+        "unknown",
+        "skipped"
+      ]
+    },
+    "ingestion_run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "template_status": {
+            "const": "pending"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "template_id": {
+            "type": "null"
+          },
+          "template_version": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "template_status": {
+            "const": "matched"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "template_version": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "template_status": {
+            "enum": [
+              "unknown",
+              "skipped"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "template_id": {
+            "type": "null"
+          },
+          "template_version": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parse_status": {
+            "enum": [
+              "ok",
+              "empty"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parse_errors": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

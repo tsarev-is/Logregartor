@@ -44,3 +44,12 @@ pnpm-debug.log*
 .env.*
 !.env.example
 !.env.sample
+
+# LogParser local data, Python environments and generated pipeline artifacts
+__pycache__/
+*.py[cod]
+.venv/
+/src/LogParser/data/
+/src/LogParser/output/
+/src/LogParser/state/
+/src/LogParser/logparser

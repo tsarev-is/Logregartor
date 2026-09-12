@@ -1,0 +1,262 @@
+{
+  "archive_sha256": "87c98c5ed03262e05cdb7a6f3717033df76d88fda0f7d2db23bd9fa4200f1879",
+  "exploratory_detection": {
+    "assumptions": [
+      "Listed VM IDs are positives; other completed builds are treated as negatives.",
+      "Instances without a completion marker are excluded from duration scoring.",
+      "The reference file is later than abnormal.log; this is not a forward-in-time test.",
+      "The 5-second margin and 35-second threshold are exploratory, not independently validated."
+    ],
+    "evaluation_completed_instances": 1510,
+    "evaluation_files": [
+      "openstack_normal2.log",
+      "openstack_abnormal.log"
+    ],
+    "precision_at_4": 1.0,
+    "reference_file": "openstack_normal1.log",
+    "thresholds": [
+      {
+        "fn": 0,
+        "fp_assuming_unlisted_builds_normal": 3,
+        "precision": 0.5714285714285714,
+        "recall_of_listed_completed_builds": 1.0,
+        "threshold_seconds_strictly_greater_than": 22.91,
+        "tp": 4
+      },
+      {
+        "fn": 0,
+        "fp_assuming_unlisted_builds_normal": 0,
+        "precision": 1.0,
+        "recall_of_listed_completed_builds": 1.0,
+        "threshold_seconds_strictly_greater_than": 27.91,
+        "tp": 4
+      },
+      {
+        "fn": 2,
+        "fp_assuming_unlisted_builds_normal": 0,
+        "precision": 1.0,
+        "recall_of_listed_completed_builds": 0.5,
+        "threshold_seconds_strictly_greater_than": 35.0,
+        "tp": 2
+      }
+    ],
+    "top4": [
+      {
+        "duration_seconds": 51.59,
+        "instance_id": "a445709b-6ad0-40ec-8860-bec60b6ca0c2",
+        "line": 16731,
+        "listed_anomaly": true,
+        "timestamp_without_timezone": "2017-05-14 21:43:33.901"
+      },
+      {
+        "duration_seconds": 42.81,
+        "instance_id": "544fd51c-4edc-4780-baae-ba1d80a0acfc",
+        "line": 11983,
+        "listed_anomaly": true,
+        "timestamp_without_timezone": "2017-05-14 21:08:19.900"
+      },
+      {
+        "duration_seconds": 32.12,
+        "instance_id": "1643649d-2f42-4303-bfcd-7798baec19f9",
+        "line": 17237,
+        "listed_anomaly": true,
+        "timestamp_without_timezone": "2017-05-14 21:47:20.726"
+      },
+      {
+        "duration_seconds": 30.32,
+        "instance_id": "ae651dff-c7ad-43d6-ac96-bbcd820ccca8",
+        "line": 12089,
+        "listed_anomaly": true,
+        "timestamp_without_timezone": "2017-05-14 21:09:11.213"
+      }
+    ]
+  },
+  "files": {
+    "openstack_abnormal.log": {
+      "backward_timestamp_steps": 0,
+      "components": {
+        "nova.api.openstack.compute.server_external_events": 196,
+        "nova.api.openstack.wsgi": 196,
+        "nova.compute.claims": 1568,
+        "nova.compute.manager": 2360,
+        "nova.compute.resource_tracker": 540,
+        "nova.metadata.wsgi.server": 1888,
+        "nova.osapi_compute.wsgi.server": 7528,
+        "nova.scheduler.host_manager": 67,
+        "nova.virt.libvirt.driver": 983,
+        "nova.virt.libvirt.imagecache": 3108
+      },
+      "headers_without_request_context": 0,
+      "http_statuses": {
+        "200": 8655,
+        "202": 196,
+        "204": 196,
+        "404": 369
+      },
+      "instances_with_completed_build": 197,
+      "instances_without_completed_build": 1,
+      "labeled_build_evidence": [
+        {
+          "duration_seconds": 42.81,
+          "instance_id": "544fd51c-4edc-4780-baae-ba1d80a0acfc",
+          "line": 11983,
+          "listed_anomaly": true,
+          "timestamp_without_timezone": "2017-05-14 21:08:19.900"
+        },
+        {
+          "duration_seconds": 30.32,
+          "instance_id": "ae651dff-c7ad-43d6-ac96-bbcd820ccca8",
+          "line": 12089,
+          "listed_anomaly": true,
+          "timestamp_without_timezone": "2017-05-14 21:09:11.213"
+        },
+        {
+          "duration_seconds": 51.59,
+          "instance_id": "a445709b-6ad0-40ec-8860-bec60b6ca0c2",
+          "line": 16731,
+          "listed_anomaly": true,
+          "timestamp_without_timezone": "2017-05-14 21:43:33.901"
+        },
+        {
+          "duration_seconds": 32.12,
+          "instance_id": "1643649d-2f42-4303-bfcd-7798baec19f9",
+          "line": 17237,
+          "listed_anomaly": true,
+          "timestamp_without_timezone": "2017-05-14 21:47:20.726"
+        }
+      ],
+      "levels": {
+        "INFO": 18159,
+        "WARNING": 275
+      },
+      "lines_with_explicit_instance_id": 4904,
+      "max_build_seconds": 51.59,
+      "max_timestamp_without_timezone": "2017-05-14 21:56:25.531",
+      "median_build_seconds": 20.62,
+      "min_timestamp_without_timezone": "2017-05-14 19:39:01.445",
+      "parsed_headers": 18434,
+      "physical_lines": 18434,
+      "unique_explicit_instance_ids": 198,
+      "unparsed_headers": 0
+    },
+    "openstack_normal1.log": {
+      "backward_timestamp_steps": 0,
+      "components": {
+        "keystonemiddleware.auth_token": 3,
+        "nova.api.openstack.compute.server_external_events": 556,
+        "nova.api.openstack.wsgi": 556,
+        "nova.compute.claims": 4448,
+        "nova.compute.manager": 6658,
+        "nova.compute.resource_tracker": 1512,
+        "nova.metadata.wsgi.server": 5558,
+        "nova.osapi_compute.wsgi.server": 21066,
+        "nova.scheduler.host_manager": 189,
+        "nova.virt.libvirt.driver": 2782,
+        "nova.virt.libvirt.imagecache": 8960,
+        "oslo_service.periodic_task": 24
+      },
+      "headers_without_request_context": 23,
+      "http_statuses": {
+        "200": 24439,
+        "202": 556,
+        "204": 556,
+        "404": 1072,
+        "503": 1
+      },
+      "instances_with_completed_build": 556,
+      "instances_without_completed_build": 1,
+      "labeled_build_evidence": [],
+      "levels": {
+        "CRITICAL": 1,
+        "ERROR": 25,
+        "INFO": 51431,
+        "WARNING": 855
+      },
+      "lines_with_explicit_instance_id": 13865,
+      "max_build_seconds": 22.91,
+      "max_timestamp_without_timezone": "2017-05-16 06:25:02.870",
+      "median_build_seconds": 20.545,
+      "min_timestamp_without_timezone": "2017-05-16 00:00:00.008",
+      "parsed_headers": 52312,
+      "physical_lines": 52312,
+      "unique_explicit_instance_ids": 557,
+      "unparsed_headers": 0
+    },
+    "openstack_normal2.log": {
+      "backward_timestamp_steps": 0,
+      "components": {
+        "keystonemiddleware.auth_token": 3,
+        "nova.api.openstack.compute.server_external_events": 1313,
+        "nova.api.openstack.wsgi": 1312,
+        "nova.compute.claims": 10504,
+        "nova.compute.manager": 15766,
+        "nova.compute.resource_tracker": 4904,
+        "nova.metadata.wsgi.server": 12957,
+        "nova.osapi_compute.wsgi.server": 49736,
+        "nova.scheduler.host_manager": 610,
+        "nova.virt.libvirt.driver": 6571,
+        "nova.virt.libvirt.imagecache": 33230,
+        "oslo_service.periodic_task": 168
+      },
+      "headers_without_request_context": 161,
+      "http_statuses": {
+        "200": 57539,
+        "202": 1313,
+        "204": 1312,
+        "404": 2528,
+        "503": 1
+      },
+      "instances_with_completed_build": 1313,
+      "instances_without_completed_build": 2,
+      "labeled_build_evidence": [],
+      "levels": {
+        "CRITICAL": 1,
+        "ERROR": 169,
+        "INFO": 134916,
+        "WARNING": 1988
+      },
+      "lines_with_explicit_instance_id": 32784,
+      "max_build_seconds": 23.34,
+      "max_timestamp_without_timezone": "2017-05-17 12:02:35.320",
+      "median_build_seconds": 20.54,
+      "min_timestamp_without_timezone": "2017-05-16 15:15:54.960",
+      "parsed_headers": 137074,
+      "physical_lines": 137074,
+      "unique_explicit_instance_ids": 1315,
+      "unparsed_headers": 0
+    }
+  },
+  "listed_anomaly_instances": [
+    "1643649d-2f42-4303-bfcd-7798baec19f9",
+    "544fd51c-4edc-4780-baae-ba1d80a0acfc",
+    "a445709b-6ad0-40ec-8860-bec60b6ca0c2",
+    "ae651dff-c7ad-43d6-ac96-bbcd820ccca8"
+  ],
+  "method": "Retrospective archive audit; max build duration per explicit VM ID within each file. No parser or ML model training.",
+  "sample": {
+    "distinct_event_ids": 43,
+    "fields": [
+      "LineId",
+      "Logrecord",
+      "Date",
+      "Time",
+      "Pid",
+      "Level",
+      "Component",
+      "ADDR",
+      "Content",
+      "EventId",
+      "EventTemplate"
+    ],
+    "has_anomaly_label_column": false,
+    "levels": {
+      "INFO": 1969,
+      "WARNING": 31
+    },
+    "rows": 2000
+  },
+  "sample_sha256": "ecc88e7909777181824260e9bdacd1469bd24d55131d6fc14e9c8c17edc49ff0",
+  "source_archive_url": "https://zenodo.org/records/3227177/files/OpenStack.tar.gz",
+  "source_sample_url": "https://raw.githubusercontent.com/logpai/loghub/master/OpenStack/OpenStack_2k.log_structured.csv",
+  "total_physical_log_lines": 207820
+}

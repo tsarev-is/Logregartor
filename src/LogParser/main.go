@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	"logparser/internal/cli"
+)
 
 func main() {
-	fmt.Println("Hello, world!")
+	if err := cli.Run(os.Args[1:], os.Stderr); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

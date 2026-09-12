@@ -4,7 +4,10 @@
 
 Данные: [OpenStack из Loghub](https://github.com/logpai/loghub/tree/master/OpenStack). Задание: [AI-Powered Observability](docs/AI_Powered_Observability_Hackathon_1.pdf).
 
-Проект на этапе проектирования. Предполагаемые компоненты:
+Реализован [LogParser](src/LogParser/README.md): пакетный разбор OpenStack на Go,
+шаблоны через Python/Drain3 и повторяемая загрузка в ClickHouse с проверками
+целостности. Аналитика, векторный поиск и dashboard находятся на этапе проектирования.
+Компоненты проекта:
 
 - **Загрузка и обработка** — чтение логов, нормализация и выделение шаблонов событий.
 - **ClickHouse** — хранение логов, фильтрация и аналитические запросы.
