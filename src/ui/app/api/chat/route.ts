@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     const runner = new Runner({ tracingDisabled: true });
     const result = await runner.run(agent, toAgentInput(messages), {
       maxTurns: 8,
+      signal: AbortSignal.timeout(90_000),
     });
     const reply: unknown = result.finalOutput;
 

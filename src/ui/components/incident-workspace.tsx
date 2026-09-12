@@ -30,7 +30,12 @@ import {
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { ChatReply, UiAction } from "@/lib/chat-contract";
 
-type Message = { role: "user" | "assistant"; content: string; actions?: UiAction[] };
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  actions?: UiAction[];
+  localOnly?: boolean;
+};
 type RuntimeStatus = {
   aiConfigured: boolean;
   mcp: { configured: boolean; connected: boolean; tools: string[] };
@@ -41,6 +46,7 @@ const initialMessages: Message[] = [
     role: "assistant",
     content:
       "Ask me what is happening in the system. When I find a useful incident, timeline, log set or service, I will attach a link that opens it in the workspace.",
+    localOnly: true,
   },
 ];
 
@@ -130,7 +136,11 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({
+          messages: nextMessages
+            .filter((message) => !message.localOnly)
+            .map(({ role, content }) => ({ role, content })),
+        }),
       });
 
       if (!response.ok) {
