@@ -49,7 +49,9 @@ docker compose --profile mcp stop mcp-clickhouse
 
 Транспорт: **Streamable HTTP**. В запросах нужен заголовок
 `Authorization: Bearer <значение CLICKHOUSE_MCP_AUTH_TOKEN>`.
-Next.js хранит токен у себя; браузер обращается только к `/api/chat`.
+Next.js хранит токен у себя; для MCP браузер обращается только к `/api/chat`.
+Карточки и исходные строки загружаются независимо через
+[Analytics-прокси Dashboard](DASHBOARD_INTEGRATION.md).
 Порт на машине можно изменить через `CLICKHOUSE_MCP_PORT` в `.env`.
 
 Пример вызова из Python-клиента FastMCP, уже установленного в контейнере MCP:

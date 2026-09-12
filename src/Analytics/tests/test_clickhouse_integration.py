@@ -113,6 +113,13 @@ class ClickHouseIntegrationTests(unittest.TestCase):
         self.assertEqual(card["stages"][2]["duration_seconds"], 50.72)
         self.assertEqual(card["event_time"], "2017-05-14T21:43:04.123456789Z")
         app = Application(self.client)
+        self.assertEqual(app.dispatch("GET", "/health", ""), (200, {"status": "ok"}))
+        status, discovery = app.dispatch("GET", "/v1/datasets", "")
+        self.assertEqual(status, 200)
+        dataset = next(row for row in discovery["datasets"] if row["dataset_id"] == self.dataset)
+        self.assertEqual(dataset, {"dataset_id": self.dataset, "ingested_sources": 2,
+                                   "analysis_run_id": report["analysis_run_id"], "incident_count": 1,
+                                   "analysis_stale": False})
         self.assertEqual(app.dispatch("GET", "/v1/incidents/" + card["incident_id"], ""), (200, card))
         status, timeline = app.dispatch("GET", "/v1/incidents/" + card["incident_id"] + "/timeline", "")
         self.assertEqual(status, 200)

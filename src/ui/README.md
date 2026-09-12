@@ -1,54 +1,62 @@
-# Logregator
+# Logregator Dashboard
 
-Evidence-first incident investigation UI with a server-side OpenAI copilot and read-only MCP access to observability data.
+Next.js UI for investigating published OpenStack incidents. The main path works
+without an LLM: dataset → ranked VM builds → stages → timeline → original log line.
+Data comes from Analytics through server-side `/api/analytics/*` routes. Every
+incident and evidence link stays pinned to its completed `analysis_run_id`.
 
-## Architecture
+See [Dashboard integration](../../docs/DASHBOARD_INTEGRATION.md) for API contracts,
+empty/error states, chat actions, module boundaries and end-to-end setup.
 
-```text
-Browser (Next.js UI)
-        |
-        | POST /api/chat (typed JSON)
-        v
-Next.js Route Handler
-        |
-        +---- OpenAI Agents SDK ---- OpenAI Responses API
-        |
-        +---- Streamable HTTP ---- Read-only ClickHouse MCP
-                                             |
-                                             v
-                                         ClickHouse
-```
+## Local development
 
-The OpenAI Agents SDK and MCP client run only in the Next.js server route. `OPENAI_API_KEY` and MCP credentials are never sent to the browser. The server connects directly to the local Streamable HTTP MCP endpoint, so the MCP port does not need a public tunnel. The model returns a strict `message + actions[]` contract. The UI renders actions as links which open an incident, timeline, log set or service in the main workspace. The model never sends HTML or arbitrary UI code.
-
-## Run locally
+Requires Node.js 22.18+ and an Analytics API (default host port 8080):
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 npm run dev
 ```
 
-Open <http://localhost:3000>. The dashboard has seeded incident evidence for the demo. Chat requests become live after `OPENAI_API_KEY` is configured. For a locally published MCP port, use `MCP_SERVER_URL=http://127.0.0.1:8000/mcp` and the same `CLICKHOUSE_MCP_AUTH_TOKEN` as the MCP server.
+Set `ANALYTICS_API_URL=http://127.0.0.1:8080` in `.env.local`. Open
+<http://localhost:3000>. Import data with LogParser and publish an Analytics run
+before expecting incidents; an empty or unavailable backend is displayed explicitly.
 
-Without credentials, click **Open demo incident** to test the complete chat-card-to-dashboard interaction.
+## Docker Compose
 
-## Run with Docker Compose
+From the repository root:
 
 ```bash
-cd ../..
-cp .env.example .env
-docker compose --profile mcp up -d --build --wait
+docker compose up -d --build --wait clickhouse analytics ui
+# After importing logs, choose an explicit threshold or reference baseline:
+docker compose exec analytics python -m log_analytics run \
+  --dataset-id openstack --threshold-seconds 27.91
 ```
 
-The root `ui` service builds this directory and includes a health check at `/api/health`. Inside Compose, the server uses `http://mcp-clickhouse:8000/mcp` and forwards `CLICKHOUSE_MCP_AUTH_TOKEN` as a bearer token.
+The threshold is an example, not a default. In Compose the UI uses
+`ANALYTICS_API_URL=http://analytics:8080`. `/api/health` checks UI liveness;
+`/api/status` checks Analytics and MCP independently.
 
-## MCP contract for the first demo
+## Optional AI investigation
 
-The agent receives only the three read-only tools exposed by `mcp-clickhouse`:
+Configure `OPENAI_API_KEY`, optionally `OPENAI_MODEL`, and the MCP connection as
+described in [MCP ClickHouse](../../docs/MCP_CLICKHOUSE.md). The OpenAI Agents SDK,
+MCP client and credentials remain server-side. The selected dataset, incident or
+evidence context is fetched and validated by the server. The model returns typed
+links; their dataset, object and analysis run are checked against Analytics before
+being sent to the browser. There is no fabricated incident fallback.
 
-- `list_databases`
-- `list_tables`
-- `run_query`
+Allowed MCP tools: `list_databases`, `list_tables`, `run_query`. Without MCP,
+chat can use the selected Analytics observation but cannot retrieve additional logs.
+Analytics data stays usable when AI is unavailable.
 
-The dedicated ClickHouse user is limited to `SELECT`, while the agent prompt requires bounded queries against finalized views and stable evidence IDs.
+## Validation
+
+```bash
+npm test           # Node tests; Python 3.11+ generates real Analytics contracts
+npm run typecheck
+npm run build
+```
+
+Contract tests require no database, model key or network. Database integration tests
+and manual setup are documented in [Analytics](../Analytics/README.md).

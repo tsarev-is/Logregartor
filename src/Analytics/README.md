@@ -174,6 +174,8 @@ python -m log_analytics serve --host 127.0.0.1 --port 8080
 
 | Endpoint | Результат |
 | --- | --- |
+| `GET /health` | Проверка доступности БД и схемы Analytics |
+| `GET /v1/datasets` | Наборы LogParser/Analytics, наличие анализа и признак устаревшего снимка |
 | `GET /v1/incidents?dataset_id=openstack` | Отчёт текущего запуска с ранжированным массивом `incidents`, без пагинации |
 | `GET /v1/incidents/{id}` | Карточка: наблюдение, порог, baseline, этапы, полнота, ID запуска |
 | `GET /v1/incidents/{id}/timeline` | `events`, `undated_events`, этапы с evidence ID, полнота |
@@ -221,4 +223,4 @@ LogParser CLI → ClickHouse → baseline/run → карточка/timeline → 
 Сам `run` также включает reference в общие счётчики. Это воспроизведение аудита
 малого архива, а не промышленная оценка качества.
 
-Reasoning, поиск похожих эпизодов и подключение UI — отдельные задачи.
+Dashboard в `src/ui` подключён через серверный прокси; запуск Compose и контракт discovery описаны в [интеграции Dashboard](../../docs/DASHBOARD_INTEGRATION.md). Reasoning и поиск похожих эпизодов остаются отдельными задачами.

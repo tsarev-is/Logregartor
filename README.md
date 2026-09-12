@@ -6,20 +6,22 @@
 
 Целевая схема — путь жюри: логи → инциденты → карточка и исходные строки.
 Контракт среза: [Analytics v1](docs/ANALYTICS_PLAN.md).
+Рабочий путь UI и запуск: [интеграция Dashboard](docs/DASHBOARD_INTEGRATION.md).
 
 ```mermaid
 flowchart LR
     L[Архив OpenStack] --> P[LogParser]
     P -->|log_events| C[(ClickHouse)]
     D[Dashboard] --> A[Analytics]
-    A <-->|чтение событий / запись incidents| C
+    A -->|SELECT log_events| C
+    A -->|INSERT incidents| C
     D -.-> M[MCP researcher]
     M -.-> C
 ```
 
-Между ClickHouse и Analytics одна двусторонняя связь: чтение `log_events` и
-пакетная запись `incidents`. Стрелка Dashboard — вызов `serve`, не третье
-ребро к базе. Пунктир — read-only контур researcher.
+Пишет и читает Analytics, не ClickHouse. `run` забирает опубликованные события
+и кладёт `incidents`; `serve` только читает снимок. Стрелка Dashboard — вызов
+модуля. Пунктир — read-only контур researcher.
 
 Компоненты:
 
@@ -67,7 +69,7 @@ UI можно запустить отдельно, без базы и MCP:
 docker compose up -d --build --wait ui
 ```
 
-Он будет доступен на `http://localhost:3000`. Без OpenAI-конфигурации работает демонстрационный переход из чат-карточки в dashboard. Для реального чата скопируйте `.env.example` в `.env` и задайте `OPENAI_API_KEY`, `CLICKHOUSE_MCP_PASSWORD` и `CLICKHOUSE_MCP_AUTH_TOKEN`. Серверный OpenAI Agents SDK подключается напрямую к `mcp-clickhouse` по `MCP_SERVER_URL`; ключи и результаты MCP не передаются браузеру напрямую.
+Он будет доступен на `http://localhost:3000`. Без Analytics показывается состояние недоступности данных. Для просмотра инцидентов запустите также `analytics` и `clickhouse`, импортируйте логи и выполните `log_analytics run`: [пошаговая интеграция](docs/DASHBOARD_INTEGRATION.md). Просмотр карточек и исходных строк не требует OpenAI. Для чата задайте `OPENAI_API_KEY`; для дополнительного исследования через MCP — `CLICKHOUSE_MCP_PASSWORD` и `CLICKHOUSE_MCP_AUTH_TOKEN` в локальном `.env`. Серверный OpenAI Agents SDK подключается напрямую к `mcp-clickhouse` по `MCP_SERVER_URL`; ключи и результаты MCP не передаются браузеру напрямую.
 
 Все сервисы запускаются одной командой:
 

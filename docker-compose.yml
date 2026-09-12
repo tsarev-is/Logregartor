@@ -10,6 +10,7 @@ services:
       MCP_SERVER_URL: ${MCP_SERVER_URL:-http://mcp-clickhouse:8000/mcp}
       MCP_AUTHORIZATION: ${MCP_AUTHORIZATION:-}
       CLICKHOUSE_MCP_AUTH_TOKEN: ${CLICKHOUSE_MCP_AUTH_TOKEN:-}
+      ANALYTICS_API_URL: ${ANALYTICS_API_URL:-http://analytics:8080}
     ports:
       - "${UI_PORT:-3000}:3000"
     healthcheck:
@@ -22,6 +23,31 @@ services:
         - http://127.0.0.1:3000/api/health
       interval: 10s
       timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  analytics:
+    build: ./src/Analytics
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-logs}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-logregartor}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-localdev}
+      CLICKHOUSE_TIMEOUT: "8"
+    ports:
+      - "127.0.0.1:${ANALYTICS_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=9).close()"
+      interval: 10s
+      timeout: 10s
       retries: 5
       start_period: 10s
 

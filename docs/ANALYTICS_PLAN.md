@@ -12,8 +12,8 @@ ERROR нет, в нормальных файлах они есть. Рабочи
 `build_duration_seconds`.
 
 План опирается на [исследование](RESEARCH.md) §5.3 и текущий модуль
-[Analytics](../src/Analytics/README.md). Reasoning, поиск похожих эпизодов и
-подключение UI — отдельные задачи.
+[Analytics](../src/Analytics/README.md). Reasoning и поиск похожих эпизодов — отдельные задачи. Подключение UI, discovery
+и health описаны в [интеграции Dashboard](DASHBOARD_INTEGRATION.md).
 
 ## Исходное состояние
 
@@ -56,7 +56,7 @@ slow_vm_build
 | Одна карточка на `(source_sha256, instance_id)` | Слияние UUID из разных файлов; фиктивный `unknown` |
 | Этапы и `evidence_ids` той же VM | Связь по request ID или только по времени |
 | Повторяемая публикация инцидентов | Живой таймер незавершённого build |
-| Чтение списка, карточки, timeline и строки | LLM-гипотезы, search, MCP-чат, контейнер Analytics, health |
+| Чтение списка, карточки, timeline и строки | LLM-гипотезы, search, MCP-чат, автоматический запуск анализа |
 
 Метки, имена `normal`/`abnormal` и ERROR не входят в признаки и не пишутся в
 карточку. Сравнение с ERROR-baseline — материал демо, не второе правило.

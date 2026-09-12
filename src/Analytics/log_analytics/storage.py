@@ -19,6 +19,33 @@ class Store:
     def __init__(self, client):
         self.client = client
 
+    def health(self):
+        self.client.rows("SELECT analysis_run_id FROM current_analysis_runs LIMIT 1")
+        return {"status": "ok"}
+
+    def datasets(self):
+        # A fresh Analytics installation may precede the first LogParser import.
+        parser = self.client.rows(
+            "SELECT name FROM system.tables WHERE database=currentDatabase() AND name='current_ingestions'")
+        inputs = self.client.rows(
+            "SELECT dataset_id, source_sha256, ingestion_run_id, processing_version "
+            "FROM current_ingestions ORDER BY dataset_id, source_sha256") if parser else []
+        snapshots = {}
+        for row in inputs:
+            snapshots.setdefault(row["dataset_id"], []).append(
+                {key: row[key] for key in ("source_sha256", "ingestion_run_id", "processing_version")})
+        reports = {row["dataset_id"]: json.loads(row["report_json"]) for row in self.client.rows(
+            "SELECT dataset_id, report_json FROM current_analysis_runs ORDER BY dataset_id")}
+        datasets = []
+        for dataset in sorted(snapshots.keys() | reports.keys()):
+            report = reports.get(dataset)
+            snapshot = snapshots.get(dataset, [])
+            datasets.append({"dataset_id": dataset, "ingested_sources": len(snapshot),
+                             "analysis_run_id": report["analysis_run_id"] if report else None,
+                             "incident_count": len(report["incidents"]) if report else None,
+                             "analysis_stale": bool(report and report["input_ingestions"] != snapshot)})
+        return {"datasets": datasets}
+
     def snapshot(self, dataset):
         return self.client.rows(
             "SELECT source_sha256, ingestion_run_id, processing_version FROM current_ingestions "

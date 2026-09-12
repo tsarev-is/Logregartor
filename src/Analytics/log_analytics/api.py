@@ -27,6 +27,10 @@ class Application:
                     run = str(uuid.UUID(params["analysis_run_id"][0]))
                 except ValueError as exc:
                     raise ValueError("invalid analysis_run_id") from exc
+            if path == "/health":
+                return 200, self.store.health()
+            if path == "/v1/datasets":
+                return 200, self.store.datasets()
             if path == "/v1/incidents":
                 dataset = params.get("dataset_id", [])
                 if len(dataset) != 1 or not dataset[0].strip():

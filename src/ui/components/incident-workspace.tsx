@@ -1,353 +1,249 @@
 "use client";
 
+import { Activity, AlertTriangle, ArrowUpRight, Bot, Database, Menu, MessageSquareText, Send, Sparkles, TerminalSquare, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ChatReplySchema, type UiAction } from "@/lib/chat-contract";
 import {
-  Activity,
-  AlertTriangle,
-  ArrowUpRight,
-  Bell,
-  Bot,
-  Check,
-  ChevronDown,
-  CircleDot,
-  Clock3,
-  Database,
-  Gauge,
-  GitBranch,
-  LayoutDashboard,
-  Menu,
-  MessageSquareText,
-  PanelLeftClose,
-  Search,
-  Send,
-  Server,
-  Settings,
-  ShieldCheck,
-  Sparkles,
-  TerminalSquare,
-  X,
-  Zap,
-} from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import type { ChatReply, UiAction } from "@/lib/chat-contract";
+  DatasetsSchema, EvidenceSchema, IncidentSchema, ReportSchema, TimelineSchema, snapshotQuery,
+  type AnalysisReport, type Dataset, type Evidence, type Incident, type Timeline,
+} from "@/lib/analytics-contract";
 
-type Message = {
-  role: "user" | "assistant";
-  content: string;
-  actions?: UiAction[];
-  localOnly?: boolean;
-};
-type RuntimeStatus = {
-  aiConfigured: boolean;
-  mcp: { configured: boolean; connected: boolean; tools: string[] };
-};
+type Message = { role: "user" | "assistant"; content: string; actions?: UiAction[]; localOnly?: boolean };
+type EventReference = { id: string; run: string; dataset: string };
+const initialMessages: Message[] = [{
+  role: "assistant", localOnly: true,
+  content: "Select a published incident to inspect its evidence. Ask me to explain the observation, identify missing evidence or suggest the next check.",
+}];
+const quickPrompts = ["Explain the selected incident", "Which evidence is missing?", "What should I check next?"];
 
-const initialMessages: Message[] = [
-  {
-    role: "assistant",
-    content:
-      "Ask me what is happening in the system. When I find a useful incident, timeline, log set or service, I will attach a link that opens it in the workspace.",
-    localOnly: true,
-  },
-];
-
-const timeline = [
-  { time: "11:41:52", service: "checkout-api", level: "warn", text: "p95 latency crossed 1.8s threshold", active: false },
-  { time: "11:42:03", service: "payment-api", level: "error", text: "upstream request timed out after 3000ms", active: false },
-  { time: "11:42:18", service: "postgres-primary", level: "critical", text: "remaining connection slots reserved", active: true },
-  { time: "11:42:21", service: "payment-api", level: "error", text: "retry storm detected · 142 req/s", active: false },
-  { time: "11:43:06", service: "checkout-api", level: "warn", text: "circuit breaker opened for payments", active: false },
-];
-
-const quickPrompts = [
-  "Open demo incident",
-  "Find active incidents",
-  "What changed recently?",
-];
-
-const demoAction: UiAction = {
-  kind: "open_incident",
-  label: "Open incident",
-  title: "INC-2048 · Checkout failures",
-  description: "SEV-1 · 3 affected services · likely database connection exhaustion",
-  targetId: "INC-2048",
-};
+async function readApi(path: string, signal: AbortSignal): Promise<unknown> {
+  const response = await fetch(`/api/analytics/${path}`, { cache: "no-store", signal });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.detail ?? "Unable to load published evidence.");
+  return body;
+}
+function failure(error: unknown) { return error instanceof Error ? error.message : "Unable to load data."; }
+function seconds(value: number) { return `${Number(value.toFixed(3))} s`; }
+function short(id: string) { return id.slice(0, 12); }
 
 export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigured: boolean; mcpConfigured: boolean }) {
   const [mobileNav, setMobileNav] = useState(false);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [selectedView, setSelectedView] = useState<UiAction | null>(null);
   const [aiReady, setAiReady] = useState(aiConfigured);
   const [mcpReady, setMcpReady] = useState(false);
-  const [statusChecked, setStatusChecked] = useState(false);
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [dataset, setDataset] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const [discoveryError, setDiscoveryError] = useState("");
+  const [discovering, setDiscovering] = useState(true);
+  const [report, setReport] = useState<AnalysisReport | null>(null);
+  const [reportError, setReportError] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [selectedView, setSelectedView] = useState<UiAction | null>(null);
+  const [card, setCard] = useState<Incident | null>(null);
+  const [timeline, setTimeline] = useState<Timeline | null>(null);
+  const [detailError, setDetailError] = useState("");
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [eventReference, setEventReference] = useState<EventReference | null>(null);
+  const [evidence, setEvidence] = useState<Evidence | null>(null);
+  const [evidenceError, setEvidenceError] = useState("");
   const chatEnd = useRef<HTMLDivElement>(null);
 
+  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => {
-    chatEnd.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const controller = new AbortController();
+    void fetch("/api/status", { cache: "no-store", signal: controller.signal }).then((response) => response.json()).then((status) => {
+      setAiReady(status.aiConfigured);
+      setMcpReady(status.mcp.connected);
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [refresh]);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
+    setDiscovering(true);
+    setDiscoveryError("");
+    void readApi("datasets", controller.signal).then((body) => {
+      const result = DatasetsSchema.parse(body).datasets;
+      if (controller.signal.aborted) return;
+      setDatasets(result);
+      setDataset((current) => current || result[0]?.dataset_id || "");
+    }).catch((error) => { if (!controller.signal.aborted) setDiscoveryError(failure(error)); })
+      .finally(() => { if (!controller.signal.aborted) setDiscovering(false); });
+    return () => controller.abort();
+  }, [refresh]);
 
-    void fetch("/api/status", { cache: "no-store" })
-      .then((response) => response.json() as Promise<RuntimeStatus>)
-      .then((status) => {
-        if (!active) return;
-        setAiReady(status.aiConfigured);
-        setMcpReady(status.mcp.connected);
-      })
-      .catch(() => {
-        if (active) setMcpReady(false);
-      })
-      .finally(() => {
-        if (active) setStatusChecked(true);
-      });
+  useEffect(() => {
+    const controller = new AbortController();
+    setReport(null);
+    setReportError("");
+    if (!dataset) return;
+    setReportLoading(true);
+    void readApi(`incidents?${new URLSearchParams({ dataset_id: dataset })}`, controller.signal).then((body) => {
+      const result = ReportSchema.parse(body);
+      if (result.dataset_id !== dataset) throw new Error("Unexpected dataset in Analytics response.");
+      if (!controller.signal.aborted) setReport(result);
+    }).catch((error) => { if (!controller.signal.aborted) setReportError(failure(error)); })
+      .finally(() => { if (!controller.signal.aborted) setReportLoading(false); });
+    return () => controller.abort();
+  }, [dataset, refresh]);
 
-    return () => {
-      active = false;
-    };
-  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    setCard(null); setTimeline(null); setDetailError("");
+    if (!selectedView || selectedView.kind === "show_logs") { setDetailLoading(false); return; }
+    const action = selectedView;
+    setDetailLoading(true);
+    const path = `incidents/${action.targetId}`;
+    const query = snapshotQuery(action.analysisRunId);
+    void Promise.all([
+      readApi(`${path}?${query}`, controller.signal),
+      readApi(`${path}/timeline?${query}`, controller.signal),
+    ]).then(([cardBody, timelineBody]) => {
+      const nextCard = IncidentSchema.parse(cardBody);
+      const nextTimeline = TimelineSchema.parse(timelineBody);
+      if (nextCard.dataset_id !== action.datasetId || nextCard.analysis_run_id !== action.analysisRunId ||
+          nextCard.incident_id !== action.targetId || nextTimeline.incident_id !== action.targetId ||
+          nextTimeline.analysis_run_id !== action.analysisRunId) throw new Error("Evidence snapshot does not match this incident.");
+      if (!controller.signal.aborted) { setCard(nextCard); setTimeline(nextTimeline); }
+    }).catch((error) => { if (!controller.signal.aborted) setDetailError(failure(error)); })
+      .finally(() => { if (!controller.signal.aborted) setDetailLoading(false); });
+    return () => controller.abort();
+  }, [selectedView, refresh]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setEvidence(null); setEvidenceError("");
+    if (!eventReference) return;
+    const ref = eventReference;
+    void readApi(`events/${ref.id}?${snapshotQuery(ref.run)}`, controller.signal).then((body) => {
+      const result = EvidenceSchema.parse(body);
+      if (result.dataset_id !== ref.dataset || result.analysis_run_id !== ref.run || result.event_id !== ref.id) {
+        throw new Error("Source record does not match the selected snapshot.");
+      }
+      if (!controller.signal.aborted) setEvidence(result);
+    }).catch((error) => { if (!controller.signal.aborted) setEvidenceError(failure(error)); });
+    return () => controller.abort();
+  }, [eventReference, refresh]);
+
+  useEffect(() => {
+    if (timeline) document.getElementById(selectedView?.kind === "show_timeline" ? "timeline" : "incident-detail")?.scrollIntoView({ behavior: "smooth" });
+  }, [timeline, selectedView]);
+  useEffect(() => {
+    if (evidence) document.getElementById("explorer")?.scrollIntoView({ behavior: "smooth" });
+  }, [evidence]);
+
+  function openAction(action: UiAction) {
+    setDataset(action.datasetId);
+    setSelectedView(action);
+    setEventReference(action.kind === "show_logs" ? { id: action.targetId, run: action.analysisRunId, dataset: action.datasetId } : null);
+  }
+  function openIncident(incident: Incident) {
+    openAction({ kind: "open_incident", targetId: incident.incident_id, datasetId: incident.dataset_id,
+      analysisRunId: incident.analysis_run_id, title: "Slow VM build", label: "Open incident", description: incident.instance_id });
+  }
+  function openEvidence(id: string) {
+    if (card) setEventReference({ id, run: card.analysis_run_id, dataset: card.dataset_id });
+  }
   async function sendMessage(text: string) {
     const content = text.trim();
     if (!content || sending) return;
-
-    const nextMessages = [...messages, { role: "user" as const, content }];
+    const nextMessages: Message[] = [...messages, { role: "user", content }];
     setMessages([...nextMessages, { role: "assistant", content: "" }]);
-    setInput("");
-    setSending(true);
-
-    if (!aiReady && content === "Open demo incident") {
-      await new Promise((resolve) => window.setTimeout(resolve, 450));
-      setMessages([
-        ...nextMessages,
-        {
-          role: "assistant",
-          content: "I found one high-severity incident in the demo snapshot. Open it to inspect the evidence and likely cause.",
-          actions: [demoAction],
-        },
-      ]);
-      setSending(false);
-      return;
-    }
-
+    setInput(""); setSending(true);
     try {
       const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: nextMessages
-            .filter((message) => !message.localOnly)
-            .map(({ role, content }) => ({ role, content })),
+          messages: nextMessages.filter((message) => !message.localOnly).slice(-20).map(({ role, content }) => ({ role, content })),
+          context: card ? { datasetId: card.dataset_id, incidentId: card.incident_id, analysisRunId: card.analysis_run_id } :
+            evidence ? { datasetId: evidence.dataset_id, incidentId: null, eventId: evidence.event_id, analysisRunId: evidence.analysis_run_id } :
+            report ? { datasetId: report.dataset_id, incidentId: null, analysisRunId: report.analysis_run_id } : undefined,
         }),
       });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "The investigation request failed.");
-      }
-
-      const reply = (await response.json()) as ChatReply;
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? body.detail ?? "Investigation failed.");
+      const reply = ChatReplySchema.parse(body);
       setMessages([...nextMessages, { role: "assistant", content: reply.message, actions: reply.actions }]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Something went wrong.";
-      setMessages([...nextMessages, { role: "assistant", content: `I couldn't run the investigation: ${message}` }]);
-    } finally {
-      setSending(false);
-    }
+      setMessages([...nextMessages, { role: "assistant", content: `I couldn't run the investigation: ${failure(error)}`, localOnly: true }]);
+    } finally { setSending(false); }
   }
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    void sendMessage(input);
-  }
-
-  function openAction(action: UiAction) {
-    setSelectedView(action);
-    window.setTimeout(() => document.getElementById("incidents")?.scrollIntoView({ behavior: "smooth" }), 50);
-  }
+  function submit(event: FormEvent) { event.preventDefault(); void sendMessage(input); }
+  const selectedDataset = datasets.find((item) => item.dataset_id === dataset);
 
   return (
     <main className="app-shell">
       <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
-        <div className="brand-row">
-          <div className="brand-mark"><Activity size={19} /></div>
-          <span>LOGREGATOR</span>
-          <button className="icon-button nav-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={18} /></button>
-        </div>
-
+        <div className="brand-row"><div className="brand-mark"><Activity size={19} /></div><span>LOGREGATOR</span><button className="icon-button nav-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={18} /></button></div>
         <nav className="primary-nav">
           <span className="nav-label">Workspace</span>
-          <a className="nav-item" href="#overview"><LayoutDashboard size={18} /> Overview</a>
-          <a className="nav-item active" href="#incidents"><AlertTriangle size={18} /> Incidents <span className="nav-count">{mcpReady ? "3" : "—"}</span></a>
-          <a className="nav-item" href="#explorer"><TerminalSquare size={18} /> Log explorer</a>
-          <a className="nav-item" href="#topology"><GitBranch size={18} /> Topology</a>
-          <span className="nav-label second">Intelligence</span>
+          <a className="nav-item active" href="#incidents"><AlertTriangle size={18} /> Incidents <span className="nav-count">{report?.incidents.length ?? "—"}</span></a>
+          <a className="nav-item" href="#timeline"><Activity size={18} /> Evidence timeline</a>
+          <a className="nav-item" href="#explorer"><TerminalSquare size={18} /> Source record</a>
           <a className="nav-item" href="#copilot"><MessageSquareText size={18} /> AI copilot</a>
-          <a className="nav-item" href="#patterns"><Sparkles size={18} /> Patterns</a>
         </nav>
-
-        <div className="connection-card">
-          <div className="connection-head"><Database size={17} /><span>Evidence source</span></div>
-          <strong>{mcpReady ? "Observability MCP" : "Demo snapshot"}</strong>
-          <div className={`connection-status ${mcpReady ? "" : "offline"}`}><i /> {mcpReady ? "Connected · read only" : statusChecked ? "MCP unavailable" : mcpConfigured ? "Checking MCP…" : "Add MCP_SERVER_URL"}</div>
-        </div>
-
-        <div className="sidebar-bottom">
-          <button className="nav-item button-reset"><Settings size={18} /> Settings</button>
-          <div className="operator"><div className="avatar">AZ</div><div><strong>Alex Zotov</strong><span>Incident commander</span></div><ChevronDown size={16} /></div>
-        </div>
+        <div className="connection-card"><div className="connection-head"><Database size={17} /> Evidence source</div><strong>Analytics publications</strong><div className={`connection-status ${discoveryError ? "offline" : ""}`}><i /> {discovering ? "Checking data…" : discoveryError ? "Unavailable" : "Connected · read only"}</div></div>
       </aside>
-
       {mobileNav && <button className="nav-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" />}
-
       <section className="main-column">
-        <header className="topbar">
-          <button className="icon-button menu-button" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={20} /></button>
-          <div className="breadcrumbs"><span>Workspace</span><b>/</b><strong>{selectedView?.targetId ?? "No selection"}</strong></div>
-          <div className="top-actions">
-            <label className="search-box"><Search size={17} /><input placeholder="Search logs, traces, services…" /><kbd>⌘ K</kbd></label>
-            <button className="icon-button has-notification" aria-label="Notifications"><Bell size={18} /></button>
-            <button className={`status-pill ${mcpReady ? "" : "preview"}`}><i /> {mcpReady ? "Live" : "Preview"}</button>
-          </div>
-        </header>
-
+        <header className="topbar"><button className="icon-button menu-button" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={20} /></button><div className="breadcrumbs"><span>Workspace</span><b>/</b><strong>{dataset || "No dataset"}</strong></div><span className="status-pill preview">Published snapshot</span></header>
         <div className="workspace">
-          {selectedView?.targetId === "INC-2048" ? (
           <section className="incident-column" id="incidents">
-            <div className="incident-heading">
-              <div>
-                <div className="eyebrow"><span className="severity-dot" /> SEV-1 · ACTIVE INCIDENT</div>
-                <h1>Checkout failures in production</h1>
-                <p>Elevated error rate and latency across the checkout flow.</p>
-              </div>
-              <button className="secondary-button"><Clock3 size={16} /> Last 30 minutes <ChevronDown size={15} /></button>
-            </div>
-
-            <div className="metrics-grid">
-              <Metric icon={<Gauge size={18} />} label="Error rate" value="18.4%" delta="+16.2%" tone="red" spark={[8, 10, 9, 13, 15, 25, 30, 54, 48, 72, 68]} />
-              <Metric icon={<Activity size={18} />} label="p95 latency" value="2.8s" delta="+1.9s" tone="amber" spark={[12, 15, 14, 16, 15, 20, 17, 24, 38, 62, 68]} />
-              <Metric icon={<Server size={18} />} label="Affected services" value="3" delta="of 12" tone="blue" spark={[10, 10, 10, 12, 12, 12, 28, 28, 30, 30, 30]} />
-              <Metric icon={<Zap size={18} />} label="Anomalies" value="7" delta="4 critical" tone="violet" spark={[6, 8, 7, 10, 9, 16, 13, 38, 25, 58, 48]} />
-            </div>
-
-            <section className="panel cause-panel">
-              <div className="panel-title-row">
-                <div><span className="panel-kicker"><Sparkles size={14} /> AI ROOT CAUSE</span><h2>Database connection pool exhausted</h2></div>
-                <div className="confidence"><span>Confidence</span><strong>87%</strong></div>
-              </div>
-              <p className="cause-copy">A burst of payment retries consumed all available PostgreSQL connections. Checkout requests then queued until their upstream timeout expired.</p>
-              <div className="evidence-summary">
-                <div><span>Trigger</span><strong>Payment retry storm</strong></div>
-                <div><span>First observed</span><strong>11:42:18 UTC</strong></div>
-                <div><span>Blast radius</span><strong>Checkout · Payments</strong></div>
-              </div>
-              <div className="cause-actions">
-                <button className="primary-button">View full analysis <ArrowUpRight size={16} /></button>
-                <span><ShieldCheck size={16} /> Grounded in 14 evidence items</span>
-              </div>
-            </section>
-
-            <section className="panel timeline-panel">
-              <div className="panel-title-row compact"><div><span className="panel-kicker">EVIDENCE TIMELINE</span><h2>Correlated sequence</h2></div><button className="text-button">Open in log explorer <ArrowUpRight size={15} /></button></div>
-              <div className="timeline">
-                {timeline.map((item) => (
-                  <div className={`timeline-row ${item.active ? "is-critical" : ""}`} key={item.time}>
-                    <time>{item.time}</time><div className="timeline-track"><i /></div>
-                    <div className="event-copy"><div><span className={`level level-${item.level}`}>{item.level}</span><strong>{item.service}</strong></div><p>{item.text}</p></div>
-                    {item.active && <span className="root-badge"><CircleDot size={13} /> likely cause</span>}
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="panel recommendation-panel">
-              <div className="recommend-icon"><Check size={18} /></div>
-              <div><span className="panel-kicker">RECOMMENDED NEXT ACTION</span><h3>Reduce payment retry concurrency and raise the pool limit temporarily.</h3><p>Then compare connection wait time and checkout error rate for five minutes.</p></div>
-              <button className="secondary-button">Open runbook <ArrowUpRight size={15} /></button>
+            <div className="incident-heading"><div><span className="panel-kicker">OPENSTACK INVESTIGATION</span><h1>Slow VM builds</h1><p>Inspect completed builds, their stages and original evidence.</p></div><button className="secondary-button" onClick={() => setRefresh((value) => value + 1)} disabled={discovering || reportLoading}>Refresh</button></div>
+            <label className="dataset-picker">Dataset <select value={dataset} onChange={(event) => { setDataset(event.target.value); setSelectedView(null); setEventReference(null); }} disabled={!datasets.length}>
+              {!datasets.length && <option value="">No published datasets</option>}
+              {dataset && !datasets.some((item) => item.dataset_id === dataset) && <option value={dataset}>{dataset}</option>}
+              {datasets.map((item) => <option key={item.dataset_id} value={item.dataset_id}>{item.dataset_id}</option>)}
+            </select></label>
+            {discoveryError && <p className="data-notice error" role="alert">{discoveryError}</p>}
+            {!discovering && !discoveryError && !datasets.length && <p className="data-notice">No data has been published. Import logs with LogParser, then run Analytics for the dataset.</p>}
+            {selectedDataset?.analysis_stale && <p className="data-notice">LogParser has newer input. This analysis still shows its original snapshot; run Analytics again to include the new data.</p>}
+            {reportLoading && <p role="status">Loading incidents…</p>}
+            {reportError && <p className="data-notice error" role="alert">{reportError} {selectedDataset?.analysis_run_id === null && "Run Analytics for this dataset after importing logs."}</p>}
+            {report && <>
+              <div className="metrics-grid">{[["Incidents", report.incidents.length], ["Completed VMs", report.completed_instances], ["Incomplete VMs", report.incomplete_instances], ["Events analyzed", report.events_read]].map(([label, value]) => <article className="metric-card" key={label}><span className="metric-label">{label}</span><div className="metric-value"><strong>{value}</strong></div></article>)}</div>
+              {!report.incidents.length ? <p className="data-notice">No builds exceeded {seconds(report.threshold_seconds)} in this publication.</p> :
+                <div className="incident-list panel">{report.incidents.map((incident, index) => <button className={`incident-row ${card?.incident_id === incident.incident_id ? "selected" : ""}`} key={incident.incident_id} onClick={() => openIncident(incident)}><span className="incident-rank">{index + 1}</span><span><strong>{incident.instance_id}</strong><small>{incident.event_time ?? "Time unavailable"} · source {short(incident.source_sha256)}</small></span><span className="incident-duration">{seconds(incident.observed_seconds)}<small>+{seconds(incident.excess_seconds)}</small></span><ArrowUpRight size={16} /></button>)}</div>}
+              <p className="snapshot-note">List snapshot: <code>{report.analysis_run_id}</code> · threshold {seconds(report.threshold_seconds)}</p>
+            </>}
+            {detailLoading && <p role="status">Loading incident evidence…</p>}
+            {detailError && <p className="data-notice error" role="alert">{detailError}</p>}
+            {card && timeline && <>
+              <section className="panel cause-panel" id="incident-detail">
+                <span className="panel-kicker">DETECTOR OBSERVATION · {card.detector}</span><h2>Build completed in {seconds(card.observed_seconds)}</h2>
+                <p className="cause-copy">The build exceeded its {seconds(card.threshold_seconds)} threshold by {seconds(card.excess_seconds)}. The measured deviation does not establish a root cause.</p>
+                <p className="identifier">VM: {card.instance_id}<br />Source: {card.source_sha256}<br />Analysis: {card.analysis_run_id}</p>
+                {report && report.analysis_run_id !== card.analysis_run_id && <p className="data-notice">This card is pinned to an earlier publication. Its original evidence remains available.</p>}
+                {card.baseline ? <p className="cause-copy">Reference: {card.baseline.completed_instances} completed VMs, {card.baseline.incomplete_instances} incomplete. Median {seconds(card.baseline.median_seconds)}, maximum {seconds(card.baseline.max_seconds)}, margin {seconds(card.baseline.margin_seconds)}.</p> : <p className="cause-copy">Explicit threshold; no reference baseline was supplied.</p>}
+                <div className="stage-grid">{card.stages.map((stage) => <div className={`stage-card ${stage.found ? "" : "missing"}`} key={stage.name}><strong>{stage.name}</strong><span>{!stage.found ? "Missing" : stage.duration_seconds === null ? "Observed" : seconds(stage.duration_seconds)}</span>{stage.evidence_ids.map((id, index) => <button className="text-button" key={id} onClick={() => openEvidence(id)}>Evidence {index + 1} <ArrowUpRight size={12} /></button>)}</div>)}</div>
+                <p className="snapshot-note">Build and spawn intervals overlap and are not added together.</p>
+                <p className="data-notice">Evidence: {card.completeness.status}. {card.completeness.missing_stages.length > 0 && `Missing stages: ${card.completeness.missing_stages.join(", ")}. `}{card.completeness.undated_event_ids.length} undated records; {card.completeness.parse_issue_event_ids.length} records with parse issues.</p>
+              </section>
+              <section className="panel timeline-panel" id="timeline"><div className="panel-title-row"><div><span className="panel-kicker">EVIDENCE TIMELINE</span><h2>One VM, one source, one build</h2></div></div>
+                <div className="evidence-timeline">{timeline.events.map((event) => <button className="evidence-row" key={event.event_id} onClick={() => openEvidence(event.event_id)}><time>{event.event_time}</time><strong>{event.component ?? "Unknown component"}</strong><span>{event.message}</span><small>Line {event.line_start} · {event.parse_status} · {short(event.event_id)}</small></button>)}</div>
+                {timeline.undated_events.length > 0 && <><h3>Records without timestamps</h3>{timeline.undated_events.map((event) => <button className="evidence-row" key={event.event_id} onClick={() => openEvidence(event.event_id)}><span>{event.message}</span><small>Line {event.line_start} · {event.parse_status}</small></button>)}</>}
+              </section>
+            </>}
+            <section id="explorer" className="panel source-panel"><span className="panel-kicker">ORIGINAL SOURCE RECORD</span>
+              {!eventReference && <p>Select a stage reference or a timeline event to open its exact source record.</p>}
+              {eventReference && !evidence && !evidenceError && <p role="status">Loading source record…</p>}
+              {evidenceError && <p className="data-notice error" role="alert">{evidenceError}</p>}
+              {evidence && <><p className="identifier">{evidence.source_file} · lines {evidence.line_start}–{evidence.line_end}<br />Event: {evidence.event_id}<br />Ingestion: {evidence.ingestion_run_id}<br />Analysis: {evidence.analysis_run_id}</p><pre className="raw-record">{evidence.raw_text + evidence.line_ending}</pre></>}
             </section>
           </section>
-          ) : selectedView ? (
-            <section className="incident-column empty-workspace" id="incidents">
-              <div className="empty-heading">
-                <div><span className="panel-kicker">AI RESULT · {selectedView.kind.replaceAll("_", " ")}</span><h1>{selectedView.title}</h1><p>{selectedView.description}</p></div>
-                <button className="secondary-button"><Clock3 size={16} /> Current result</button>
-              </div>
-              <div className="empty-canvas result-placeholder">
-                <div className="empty-orbit"><Database size={23} /></div>
-                <h2>View reference resolved</h2>
-                <p>The UI received <code>{selectedView.targetId}</code> from the AI. Connect the application data adapter to render the matching records here.</p>
-                <span className="resolved-reference"><Check size={15} /> Typed action handled by the workspace</span>
-              </div>
-            </section>
-          ) : (
-            <section className="incident-column empty-workspace" id="incidents">
-              <div className="empty-heading">
-                <div><span className="panel-kicker">INVESTIGATION WORKSPACE</span><h1>No incident selected</h1><p>Ask the copilot to investigate your system, then open one of its results here.</p></div>
-                <button className="secondary-button"><Clock3 size={16} /> Last 30 minutes <ChevronDown size={15} /></button>
-              </div>
-              <div className="empty-metrics">
-                {["Error rate", "p95 latency", "Affected services", "Anomalies"].map((label) => <div className="empty-metric" key={label}><span>{label}</span><strong>—</strong></div>)}
-              </div>
-              <div className="empty-canvas">
-                <div className="empty-orbit"><Sparkles size={23} /></div>
-                <h2>Start in the incident copilot</h2>
-                <p>Ask a question in natural language. Verified results will appear as links in the conversation and open in this workspace.</p>
-                <button className="primary-button" onClick={() => void sendMessage("Open demo incident")} disabled={sending}>Try the demo incident <ArrowUpRight size={16} /></button>
-                <div className="empty-capabilities">
-                  <span><AlertTriangle size={14} /> Incidents</span><span><TerminalSquare size={14} /> Logs</span><span><GitBranch size={14} /> Timelines</span><span><Server size={14} /> Services</span>
-                </div>
-              </div>
-            </section>
-          )}
-
           <aside className="copilot" id="copilot">
-            <div className="copilot-header">
-              <div className="copilot-icon"><Bot size={19} /></div><div><strong>Incident copilot</strong><span className={mcpReady ? "" : "offline"}><i /> {mcpReady ? "Evidence connected" : "Demo mode"}</span></div>
-              <button className="icon-button" aria-label="Collapse copilot"><PanelLeftClose size={18} /></button>
-            </div>
-            <div className={`context-chip ${selectedView ? "" : "context-empty"}`}><AlertTriangle size={14} /><span>Context</span><strong>{selectedView?.targetId ?? "No active view"}</strong></div>
-            <div className="messages">
-              {messages.map((message, index) => (
-                <div className={`message ${message.role}`} key={`${message.role}-${index}`}>
-                  {message.role === "assistant" && <div className="message-avatar"><Sparkles size={14} /></div>}
-                  <div className="bubble">
-                    {message.content || <span className="typing"><i /><i /><i /></span>}
-                    {message.role === "assistant" && message.content && index === 0 && <div className="mini-evidence"><Database size={14} /><span>{mcpReady ? "MCP ready" : "Demo context only"}</span></div>}
-                    {message.actions?.map((action) => (
-                      <button className="ui-action-card" key={`${action.kind}-${action.targetId}`} onClick={() => openAction(action)}>
-                        <span className="ui-action-icon">{action.kind === "open_incident" ? <AlertTriangle size={15} /> : action.kind === "show_service" ? <Server size={15} /> : <TerminalSquare size={15} />}</span>
-                        <span className="ui-action-copy"><strong>{action.title}</strong><small>{action.description}</small><b>{action.label} <ArrowUpRight size={13} /></b></span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <div ref={chatEnd} />
-            </div>
-            <div className="prompt-list">
-              {quickPrompts.map((prompt) => <button key={prompt} onClick={() => void sendMessage(prompt)} disabled={sending}>{prompt}<ArrowUpRight size={14} /></button>)}
-            </div>
-            <form className="composer" onSubmit={submit}>
-              <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Ask about this incident…" rows={2} />
-              <div><span>{mcpReady ? "MCP tools enabled" : aiReady ? "AI ready · MCP unavailable" : "Add server environment variables"}</span><button type="submit" disabled={sending || !input.trim()} aria-label="Send message"><Send size={16} /></button></div>
-            </form>
-            <p className="copilot-note">AI can make mistakes. Verify actions against the linked evidence.</p>
+            <div className="copilot-header"><div className="copilot-icon"><Bot size={19} /></div><div><strong>Incident copilot</strong><span className={aiReady ? "" : "offline"}><i />{aiReady ? mcpReady ? "AI + MCP connected" : "AI configured" : "AI not configured"}</span></div></div>
+            <div className="context-chip"><AlertTriangle size={14} /><span>Context</span><strong>{card ? short(card.incident_id) : dataset || "No dataset"}</strong></div>
+            <div className="messages">{messages.map((message, index) => <div className={`message ${message.role}`} key={index}>{message.role === "assistant" && <div className="message-avatar"><Sparkles size={14} /></div>}<div className="bubble">{message.content || <span className="typing"><i /><i /><i /></span>}{message.actions?.map((action) => <button className="ui-action-card" key={`${action.kind}-${action.targetId}-${action.analysisRunId}`} onClick={() => openAction(action)}><span className="ui-action-icon"><ArrowUpRight size={15} /></span><span className="ui-action-copy"><strong>{action.title}</strong><small>{action.description}</small><b>{action.label}</b></span></button>)}</div></div>)}<div ref={chatEnd} /></div>
+            <div className="prompt-list">{quickPrompts.map((prompt) => <button key={prompt} onClick={() => void sendMessage(prompt)} disabled={sending || !aiReady}>{prompt}<ArrowUpRight size={14} /></button>)}</div>
+            <form className="composer" onSubmit={submit}><textarea aria-label="Investigation question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Ask about this incident…" rows={2} maxLength={10_000} /><div><span>{mcpReady ? "Read-only MCP tools enabled" : mcpConfigured ? "MCP unavailable" : "Selected Analytics context"}</span><button type="submit" disabled={sending || !input.trim() || !aiReady} aria-label="Send message"><Send size={16} /></button></div></form>
+            <p className="copilot-note">Verify hypotheses against evidence. Published records remain accessible when AI is unavailable.</p>
           </aside>
         </div>
       </section>
     </main>
-  );
-}
-
-function Metric({ icon, label, value, delta, tone, spark }: { icon: React.ReactNode; label: string; value: string; delta: string; tone: string; spark: number[] }) {
-  const points = spark.map((height, index) => `${index * 10},${76 - height}`).join(" ");
-  return (
-    <article className="metric-card">
-      <div className={`metric-icon ${tone}`}>{icon}</div><span className="metric-label">{label}</span>
-      <div className="metric-value"><strong>{value}</strong><span>{delta}</span></div>
-      <svg className={`sparkline ${tone}`} viewBox="0 0 100 80" preserveAspectRatio="none" aria-hidden="true"><polyline points={points} /></svg>
-    </article>
   );
 }
