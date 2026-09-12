@@ -49,6 +49,8 @@ pnpm-debug.log*
 __pycache__/
 *.py[cod]
 .venv/
+*.egg-info/
+/src/Analytics/output/
 /src/LogParser/data/
 /src/LogParser/output/
 /src/LogParser/state/
