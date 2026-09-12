@@ -56,8 +56,9 @@ python -m pipeline load --input output/events.jsonl --state-dir state/reference-
 ```
 
 Перед отдельным `parse` создайте каталог результата. `--input` у Go-парсера
-повторяемый; один JSONL может содержать несколько файлов. Все команды Python
-принимают `--report`; по умолчанию отчёт расположен в `INPUT.report.json`.
+повторяемый; один JSONL может содержать несколько файлов. Команды Python
+`fit`, `transform`, `load` и `evaluate` принимают `--report`; по умолчанию
+отчёт расположен в `INPUT.report.json`.
 `transform` поддерживает `--output-report`, по умолчанию `OUTPUT.report.json`.
 Ошибки конфигурации, чтения, записи и БД завершают команду ненулевым кодом.
 
@@ -235,3 +236,28 @@ Python-тесты автоматически собирают Go-бинарни�
 
 Остановить локальный ClickHouse с сохранением данных: `docker compose down`
 из корня репозитория. Не добавляйте `-v`, если данные нужно сохранить.
+
+## OpenSpec
+
+Контекст модуля и правила подготовки изменений заданы в
+[openspec/config.yaml](openspec/config.yaml), схема — `spec-driven`.
+Основные спецификации описывают фактическое поведение реализации:
+
+| Спецификация | Контракт |
+| --- | --- |
+| [openstack-parsing](openspec/specs/openstack-parsing/spec.md) | Физические строки, нормализация и целостность JSONL |
+| [template-mining](openspec/specs/template-mining/spec.md) | Обучение Drain3, версии и замороженное сопоставление |
+| [clickhouse-ingestion](openspec/specs/clickhouse-ingestion/spec.md) | Публикация завершённых загрузок, повторы и восстановление |
+| [pipeline-cli](openspec/specs/pipeline-cli/spec.md) | Команды, подготовка данных, сквозной запуск и оценка |
+
+Артефакты пишутся по-русски; структурные заголовки OpenSpec, `SHALL`/`MUST`
+и технические идентификаторы сохраняются на английском. Новые предложения
+размещаются в `openspec/changes/`, завершённые — в `openspec/changes/archive/`.
+
+Проверено с OpenSpec CLI 1.13.0. Команды выполняются из `src/LogParser/`:
+
+```bash
+openspec context --json
+openspec list --specs
+openspec validate --all --strict --no-interactive
+```

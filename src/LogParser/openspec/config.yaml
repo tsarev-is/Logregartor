@@ -1,0 +1,98 @@
+schema: spec-driven
+
+context: |
+  Language: Russian
+  All artifacts must be written in Russian.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Сохраняй технические идентификаторы, пути и команды в исходном виде.
+
+  Проект и границы:
+  - LogParser — Go-модуль logparser в src/LogParser/ репозитория Logregartor.
+    Эта конфигурация OpenSpec относится только к этому модулю.
+    Запускай команды OpenSpec из src/LogParser/.
+  - Назначение модуля — пакетное чтение логов OpenStack из Loghub,
+    нормализация, выделение шаблонов и проверяемая загрузка в ClickHouse.
+  - Реализован пакетный конвейер: Go parse -> JSONL -> Python/Drain3
+    fit/transform -> ClickHouse load. CLI pipeline run объединяет этапы.
+    Контракт события — schema/log-event.v1.json, схема БД — sql/001_initial.sql.
+  - Go 1.26.3 согласно go.mod, без сторонних Go-зависимостей; Python 3.11+.
+    requirements.txt фиксирует drain3==0.9.11, cachetools==4.2.1,
+    jsonpickle==1.5.1 и fastjsonschema==2.21.2.
+  - Текущие schema_version=1, parser_version=1.0.0, pipeline VERSION=1.0.0.
+    Изменения контрактов и версий должны учитывать совместимость артефактов.
+  - ClickHouse описан в ../../docker-compose.yml. UI в ../ui/ и интеграция
+    MCP ClickHouse в ../../infra/mcp-clickhouse/ — отдельные компоненты проекта.
+    Детектор аномалий, векторный поиск и AI-аналитика не входят в LogParser.
+
+  Фактические контракты:
+  - openspec/specs/openstack-parsing/spec.md — обычные UTF-8 файлы, физические строки,
+    нормализация и целостность JSONL. raw_text + line_ending восстанавливают
+    байты источника; event_id=SHA256(source_sha256 + ":" + номер строки с 1).
+    Отсутствие контекста запроса и пустое тело допустимы. Multiline не склеивается.
+  - openspec/specs/template-mining/spec.md — fit на выбранном эталоне и замороженный
+    transform. Маски применяются к копии message. Словарь и артефакты версионируются
+    и проверяются по SHA-256; transform не обучает словарь на новых сообщениях.
+  - openspec/specs/clickhouse-ingestion/spec.md — HTTP JSONEachRow, пакет по умолчанию
+    5000 событий. log_events_raw и event_templates_raw хранят попытки загрузки;
+    current_ingestions, log_events и event_templates публикуют последнюю
+    завершённую попытку для (dataset_id, source_sha256).
+    Повтор текущей processing_version пропускает запись, но проверяет весь ввод.
+    Блокировка писателя локальна для пользователя ОС и endpoint/базы;
+    распределённой блокировки и общей транзакции всех файлов нет.
+  - openspec/specs/pipeline-cli/spec.md — Go parse/version/help; Python prepare, fit,
+    transform, load, evaluate и run. run требует готовый бинарник Go и входные
+    файлы; prepare запускается отдельно. Эталон выбирается через --reference.
+  - Спецификации в openspec/specs/ описывают уже реализованный модуль.
+    Каталог openspec/changes/ предназначен для дальнейших изменений.
+    Исторические benchmark-замеры не являются гарантией производительности.
+
+  Источники контекста (пути относительно каталога модуля):
+  - README.md — использование, ограничения и проверка фактического модуля.
+  - internal/, pipeline/, schema/log-event.v1.json, config/drain.json,
+    sql/001_initial.sql, *_test.go и tests/ — реализация и проверяемые контракты.
+  - tests/fixtures/openstack_audit.json — зафиксированный аудит полного набора.
+  - ../../AGENTS.md — правила разработки; ../../README.md — архитектура проекта;
+    ../../docs/AI_Powered_Observability_Hackathon_1.pdf — задание хакатона.
+  - Исторические описания начального состояния и исследовательские рекомендации
+    не заменяют текущий код. Перед изменениями сверяй спецификации с реализацией.
+
+  Соглашения разработки:
+  - Используй gofmt, строчные имена пакетов и MixedCaps для идентификаторов.
+    Экспортируй только необходимые символы; разделяй ответственности пакетов.
+    Передавай конфигурацию сервисов явно.
+  - Из каталога модуля: go build ./..., go test ./..., go vet ./....
+    go run . показывает справку; бинарник для pipeline run собирается командой
+    go build -o bin/logparser .
+  - Используй стандартный testing, файлы *_test.go и функции TestXxx.
+    Проверяй валидные записи, повреждённый и пустой ввод, сохранение исходных
+    байтов, устойчивость идентификаторов и целостность промежуточных артефактов.
+  - В Python-окружении с requirements.txt: python -m unittest discover -s tests -v.
+    Полный архив: LOGPARSER_DATA_DIR=data/openstack python -m unittest
+    tests.test_openstack_dataset -v. ClickHouse: LOGPARSER_CLICKHOUSE_TEST=1
+    python -m unittest tests.test_clickhouse_integration -v; нужны права на
+    создание и удаление только уникальной временной базы logparser_test_<UUID>.
+    Без этих переменных соответствующие тесты пропускаются.
+  - Проверка OpenSpec из модуля:
+    openspec validate --all --strict --no-interactive.
+  - Из корня репозитория: docker compose up -d --wait clickhouse,
+    docker compose config --quiet, docker compose down.
+  - Python-клиент читает CLICKHOUSE_URL, CLICKHOUSE_DB, CLICKHOUSE_USER,
+    CLICKHOUSE_PASSWORD и CLICKHOUSE_TIMEOUT из окружения, а не из .env напрямую.
+    Секреты хранятся в игнорируемых локальных .env и передаются через окружение.
+    Пароль localdev — только для разработки. Drain3 snapshot загружай только
+    из доверенного локального state-dir, поскольку используется jsonpickle.
+    docker compose down -v удаляет сохранённые логи; не используй его
+    без явного намерения удалить данные.
+
+rules:
+  proposal:
+    - Сначала сверяй существующие capabilities с openspec/specs/ и текущим кодом.
+    - Описывай предлагаемое изменение поведения относительно реализованной базы.
+  specs:
+    - Пиши по-русски, сохраняя заголовки Purpose, Requirements, Requirement и Scenario.
+    - Каждое требование содержит SHALL или MUST и проверяемый сценарий WHEN/THEN.
+    - Не обещай streaming, multiline, обучение в transform или распределённую блокировку без отдельного изменения.
+  design:
+    - Для изменений артефактов и хранения явно разбирай версии, целостность, повторный запуск и видимость незавершённых загрузок.
+  tasks:
+    - Указывай проверку результата каждой задачи и необходимые данные или зависимость от ClickHouse.
