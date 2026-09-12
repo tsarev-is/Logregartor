@@ -3,6 +3,7 @@
 import { Activity, AlertTriangle, ArrowUpRight, Bot, Database, Menu, MessageSquareText, Send, Sparkles, TerminalSquare, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ChatReplySchema, type UiAction } from "@/lib/chat-contract";
+import { LiveLogExplorer } from "@/components/live-log-explorer";
 import {
   DatasetsSchema, EvidenceSchema, IncidentSchema, ReportSchema, TimelineSchema, snapshotQuery,
   type AnalysisReport, type Dataset, type Evidence, type Incident, type Timeline,
@@ -33,6 +34,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
   const [sending, setSending] = useState(false);
   const [aiReady, setAiReady] = useState(aiConfigured);
   const [mcpReady, setMcpReady] = useState(false);
+  const [showLiveLogs, setShowLiveLogs] = useState(false);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [dataset, setDataset] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -180,18 +182,20 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
         <div className="brand-row"><div className="brand-mark"><Activity size={19} /></div><span>LOGREGATOR</span><button className="icon-button nav-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={18} /></button></div>
         <nav className="primary-nav">
           <span className="nav-label">Workspace</span>
-          <a className="nav-item active" href="#incidents"><AlertTriangle size={18} /> Incidents <span className="nav-count">{report?.incidents.length ?? "—"}</span></a>
+          <a className={`nav-item ${showLiveLogs ? "" : "active"}`} href="#incidents" onClick={() => { setShowLiveLogs(false); setMobileNav(false); }}><AlertTriangle size={18} /> Incidents <span className="nav-count">{report?.incidents.length ?? "—"}</span></a>
           <a className="nav-item" href="#timeline"><Activity size={18} /> Evidence timeline</a>
           <a className="nav-item" href="#explorer"><TerminalSquare size={18} /> Source record</a>
+          <button type="button" className={`nav-item ${showLiveLogs ? "active" : ""}`} onClick={() => { setShowLiveLogs(true); setMobileNav(false); }}><Database size={18} /> Live logs</button>
           <a className="nav-item" href="#copilot"><MessageSquareText size={18} /> AI copilot</a>
         </nav>
         <div className="connection-card"><div className="connection-head"><Database size={17} /> Evidence source</div><strong>Analytics publications</strong><div className={`connection-status ${discoveryError ? "offline" : ""}`}><i /> {discovering ? "Checking data…" : discoveryError ? "Unavailable" : "Connected · read only"}</div></div>
       </aside>
       {mobileNav && <button className="nav-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" />}
       <section className="main-column">
-        <header className="topbar"><button className="icon-button menu-button" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={20} /></button><div className="breadcrumbs"><span>Workspace</span><b>/</b><strong>{dataset || "No dataset"}</strong></div><span className="status-pill preview">Published snapshot</span></header>
+        <header className="topbar"><button className="icon-button menu-button" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={20} /></button><div className="breadcrumbs"><span>Workspace</span><b>/</b><strong>{showLiveLogs ? "Live logs" : dataset || "No dataset"}</strong></div><span className="status-pill preview">{showLiveLogs ? "Read only" : "Published snapshot"}</span></header>
         <div className="workspace">
           <section className="incident-column" id="incidents">
+            {showLiveLogs ? <LiveLogExplorer /> : <>
             <div className="incident-heading"><div><span className="panel-kicker">OPENSTACK INVESTIGATION</span><h1>Slow VM builds</h1><p>Inspect completed builds, their stages and original evidence.</p></div><button className="secondary-button" onClick={() => setRefresh((value) => value + 1)} disabled={discovering || reportLoading}>Refresh</button></div>
             <label className="dataset-picker">Dataset <select value={dataset} onChange={(event) => { setDataset(event.target.value); setSelectedView(null); setEventReference(null); }} disabled={!datasets.length}>
               {!datasets.length && <option value="">No published datasets</option>}
@@ -233,6 +237,7 @@ export function IncidentWorkspace({ aiConfigured, mcpConfigured }: { aiConfigure
               {evidenceError && <p className="data-notice error" role="alert">{evidenceError}</p>}
               {evidence && <><p className="identifier">{evidence.source_file} · lines {evidence.line_start}–{evidence.line_end}<br />Event: {evidence.event_id}<br />Ingestion: {evidence.ingestion_run_id}<br />Analysis: {evidence.analysis_run_id}</p><pre className="raw-record">{evidence.raw_text + evidence.line_ending}</pre></>}
             </section>
+            </>}
           </section>
           <aside className="copilot" id="copilot">
             <div className="copilot-header"><div className="copilot-icon"><Bot size={19} /></div><div><strong>Incident copilot</strong><span className={aiReady ? "" : "offline"}><i />{aiReady ? mcpReady ? "AI + MCP connected" : "AI configured" : "AI not configured"}</span></div></div>

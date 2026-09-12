@@ -22,6 +22,15 @@ Set `ANALYTICS_API_URL=http://127.0.0.1:8080` in `.env.local`. Open
 <http://localhost:3000>. Import data with LogParser and publish an Analytics run
 before expecting incidents; an empty or unavailable backend is displayed explicitly.
 
+## Live log explorer
+
+The **Live logs** section reads finalized `log_events` directly from ClickHouse
+through the server-side, read-only `/api/logs` route. Queries are fixed,
+parameterized and bounded; browser code never receives ClickHouse credentials.
+For local `npm run dev`, it defaults to `http://127.0.0.1:8123`; override it
+with `LOGS_CLICKHOUSE_URL`, `LOGS_CLICKHOUSE_DATABASE`,
+`LOGS_CLICKHOUSE_USER` and `LOGS_CLICKHOUSE_PASSWORD` when needed.
+
 ## Docker Compose
 
 From the repository root:
@@ -34,7 +43,8 @@ docker compose exec analytics python -m log_analytics run \
 ```
 
 The threshold is an example, not a default. In Compose the UI uses
-`ANALYTICS_API_URL=http://analytics:8080`. `/api/health` checks UI liveness;
+`ANALYTICS_API_URL=http://analytics:8080` and accesses ClickHouse for live logs
+only over its internal Docker network. `/api/health` checks UI liveness;
 `/api/status` checks Analytics and MCP independently.
 
 ## Optional AI investigation
