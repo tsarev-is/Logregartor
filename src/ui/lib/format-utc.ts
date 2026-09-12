@@ -14,3 +14,9 @@ export function formatUtc(timestamp: string) {
     timeZoneName: "short",
   }).format(date);
 }
+
+export function formatUtcMillis(timestampMs: number | null) {
+  if (timestampMs === null) return "No timestamp";
+  const date = new Date(timestampMs);
+  return Number.isNaN(date.getTime()) ? String(timestampMs) : formatUtc(date.toISOString());
+}

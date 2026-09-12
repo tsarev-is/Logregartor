@@ -24,6 +24,7 @@ export type LiveLogsPage = {
   facets: {
     levels: string[];
     sources: string[];
+    components: string[];
   };
 };
 
@@ -46,6 +47,7 @@ export function isLiveLogsPage(value: unknown): value is LiveLogsPage {
     ) &&
     Boolean(page.facets) &&
     Array.isArray(page.facets?.levels) &&
-    Array.isArray(page.facets?.sources)
+    Array.isArray(page.facets?.sources) &&
+    Array.isArray(page.facets?.components)
   );
 }

@@ -1,4 +1,5 @@
 import type { LiveLogEvent, LiveLogsPage } from "@/lib/logs-contract";
+import type { ServiceSummary } from "@/lib/services-contract";
 
 type ClickHouseParams = Record<string, string | number>;
 
@@ -41,9 +42,21 @@ async function rows<T>(sql: string, params: ClickHouseParams, signal: AbortSigna
   return text.trim() ? text.trim().split("\n").map((line) => JSON.parse(line) as T) : [];
 }
 
+function asNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function asNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 const FILTER = `
 WHERE dataset_id = {dataset:String}
   AND ({source:String} = '' OR source_file = {source:String})
+  AND ({component:String} = '' OR ifNull(component, '') = {component:String})
   AND ({level:String} = '' OR ifNull(level, '') = {level:String})
   AND (
     {search:String} = ''
@@ -52,6 +65,7 @@ WHERE dataset_id = {dataset:String}
     OR positionCaseInsensitiveUTF8(toString(event_id), {search:String}) > 0
     OR positionCaseInsensitiveUTF8(ifNull(request_id, ''), {search:String}) > 0
     OR positionCaseInsensitiveUTF8(ifNull(instance_id, ''), {search:String}) > 0
+    OR positionCaseInsensitiveUTF8(ifNull(component, ''), {search:String}) > 0
   )`;
 
 export async function readLiveLogs(input: {
@@ -59,6 +73,7 @@ export async function readLiveLogs(input: {
   search: string;
   level: string;
   source: string;
+  component: string;
   limit: number;
   offset: number;
 }): Promise<LiveLogsPage> {
@@ -88,24 +103,57 @@ LIMIT {limit:UInt32} OFFSET {offset:UInt32}`;
   const facetsSql = `
 SELECT
   arraySort(groupUniqArray(ifNull(level, ''))) AS levels,
-  arraySort(groupUniqArray(source_file)) AS sources
+  arraySort(groupUniqArray(source_file)) AS sources,
+  arraySort(groupUniqArray(ifNull(component, ''))) AS components
 FROM log_events
 WHERE dataset_id = {dataset:String}`;
 
   const [events, counts, facets] = await Promise.all([
     rows<LiveLogEvent>(eventsSql, params, signal),
     rows<{ total: string }>(countSql, params, signal),
-    rows<{ levels: string[]; sources: string[] }>(facetsSql, params, signal),
+    rows<{ levels: string[]; sources: string[]; components: string[] }>(facetsSql, params, signal),
   ]);
   return {
     dataset: input.dataset,
-    total: Number(counts[0]?.total ?? 0),
+    total: asNumber(counts[0]?.total),
     limit: input.limit,
     offset: input.offset,
     events,
     facets: {
       levels: (facets[0]?.levels ?? []).filter(Boolean),
       sources: facets[0]?.sources ?? [],
+      components: (facets[0]?.components ?? []).filter(Boolean),
     },
   };
+}
+
+export async function readServiceSummaries(dataset: string): Promise<ServiceSummary[]> {
+  const signal = AbortSignal.timeout(15_000);
+  const sql = `
+SELECT
+  dataset_id AS datasetId,
+  service,
+  event_count AS eventCount,
+  error_count AS errorCount,
+  log_error_rate AS logErrorRate,
+  if(isNull(first_event_time), NULL, toUnixTimestamp64Milli(first_event_time)) AS firstEventTimeMs,
+  if(isNull(last_event_time), NULL, toUnixTimestamp64Milli(last_event_time)) AS lastEventTimeMs,
+  http_latency_sample_count AS httpLatencySampleCount,
+  http_p95_seconds AS httpP95Seconds
+FROM ui_service_summary
+WHERE dataset_id = {dataset:String}
+ORDER BY error_count DESC, event_count DESC, service
+LIMIT 200`;
+  const records = await rows<Record<string, unknown>>(sql, { dataset }, signal);
+  return records.map((row) => ({
+    datasetId: String(row.datasetId ?? ""),
+    service: String(row.service ?? ""),
+    eventCount: asNumber(row.eventCount),
+    errorCount: asNumber(row.errorCount),
+    logErrorRate: asNullableNumber(row.logErrorRate),
+    firstEventTimeMs: asNullableNumber(row.firstEventTimeMs),
+    lastEventTimeMs: asNullableNumber(row.lastEventTimeMs),
+    httpLatencySampleCount: asNumber(row.httpLatencySampleCount),
+    httpP95Seconds: asNullableNumber(row.httpP95Seconds),
+  })).filter((row) => row.datasetId && row.service);
 }

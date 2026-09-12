@@ -15,10 +15,17 @@ export async function GET(request: Request) {
   const search = (searchParams.get("q") ?? "").trim();
   const level = (searchParams.get("level") ?? "").trim().toUpperCase();
   const source = (searchParams.get("source") ?? "").trim();
+  const component = (searchParams.get("component") ?? "").trim();
   if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(dataset)) {
     return Response.json({ error: "Invalid dataset." }, { status: 400 });
   }
-  if (search.length > 200 || source.length > 160 || !ALLOWED_LEVELS.has(level)) {
+  if (
+    search.length > 200 ||
+    source.length > 160 ||
+    component.length > 160 ||
+    (component && !/^[a-zA-Z0-9._-]+$/.test(component)) ||
+    !ALLOWED_LEVELS.has(level)
+  ) {
     return Response.json({ error: "Invalid log filter." }, { status: 400 });
   }
 
@@ -28,6 +35,7 @@ export async function GET(request: Request) {
       search,
       level,
       source,
+      component,
       limit: boundedInteger(searchParams.get("limit"), 50, 1, 100),
       offset: boundedInteger(searchParams.get("offset"), 0, 0, 1_000_000),
     });
