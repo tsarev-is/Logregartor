@@ -1,16 +1,16 @@
 # Logregartor
 
-Хакатонный проект для анализа логов: поиск аномалий, связывание событий и объяснение вероятных причин сбоев на основе найденных записей.
+Hackathon project for log analysis: anomaly detection, event correlation, and explanations of likely failure causes based on the records found.
 
-Данные: [OpenStack из Loghub](https://github.com/logpai/loghub/tree/master/OpenStack). Задание: [AI-Powered Observability](docs/AI_Powered_Observability_Hackathon_1.pdf).
+Data: [OpenStack from Loghub](https://github.com/logpai/loghub/tree/master/OpenStack). Brief: [AI-Powered Observability](docs/AI_Powered_Observability_Hackathon_1.pdf).
 
-Целевая схема — путь жюри: логи → инциденты → карточка и исходные строки.
-Контракт среза: [Analytics v1](docs/ANALYTICS_PLAN.md).
-Рабочий путь UI и запуск: [интеграция Dashboard](docs/DASHBOARD_INTEGRATION.md).
+The target flow—the path for the judging panel—is: logs → incidents → incident card and source lines.
+Snapshot contract: [Analytics v1](docs/ANALYTICS_PLAN.md).
+UI workflow and launch instructions: [Dashboard integration](docs/DASHBOARD_INTEGRATION.md).
 
 ```mermaid
 flowchart LR
-    L[Архив OpenStack] --> P[LogParser]
+    L[OpenStack archive] --> P[LogParser]
     P -->|log_events| C[(ClickHouse)]
     D[Dashboard] --> A[Analytics]
     A -->|SELECT log_events| C
@@ -19,59 +19,59 @@ flowchart LR
     M -.-> C
 ```
 
-Пишет и читает Analytics, не ClickHouse. `run` забирает опубликованные события
-и кладёт `incidents`; `serve` только читает снимок. Стрелка Dashboard — вызов
-модуля. Пунктир — read-only контур researcher.
+Analytics, rather than ClickHouse, performs reads and writes. `run` fetches published
+events and stores `incidents`; `serve` only reads the snapshot. The Dashboard arrow
+denotes a module call. The dashed line is the researcher's read-only path.
 
-Компоненты:
+Components:
 
-- **LogParser** — разбор OpenStack, шаблоны, повторяемая загрузка событий.
-- **ClickHouse** — `log_events` и опубликованные инциденты.
-- **Analytics** — пакетный Detect и read-only API над снимком запуска.
-- **Dashboard** — расследование: сигнал → этапы → исходная строка.
-- **MCP** — read-only доступ researcher к ClickHouse.
+- **LogParser** — OpenStack parsing, templates, and repeatable event loading.
+- **ClickHouse** — `log_events` and published incidents.
+- **Analytics** — batch detection and a read-only API over a run snapshot.
+- **Dashboard** — investigation: signal → stages → source line.
+- **MCP** — researcher read-only access to ClickHouse.
 
-Векторный поиск и RAG-объяснение в эту схему не входят. Сервисы поднимаются
-из [docker-compose.yml](docker-compose.yml).
+Vector search and RAG explanations are outside this architecture. Services are started
+from [docker-compose.yml](docker-compose.yml).
 
-Минимальная цель: воспроизводимое демо на OpenStack — загрузить логи, выделить шаблоны, обнаружить один класс аномалий и показать хронологию событий, вероятные причины со ссылками на логи и рекомендуемый следующий шаг.
+Minimum goal: a reproducible OpenStack demo—load logs, derive templates, detect one class of anomalies, and show an event timeline, likely causes with links to logs, and a recommended next step.
 
-Локальный ClickHouse (нужен Docker Compose):
+Local ClickHouse (Docker Compose required):
 
 ```bash
 docker compose up -d --wait clickhouse
 ```
 
-HTTP: `http://localhost:8123`, native: `localhost:9000`. База: `logs`, пользователь: `logregartor`, пароль для локальной разработки: `localdev`. Другие сервисы в этой Compose-сети подключаются к `clickhouse:8123` или `clickhouse:9000`.
+HTTP: `http://localhost:8123`, native: `localhost:9000`. Database: `logs`; user: `logregartor`; local-development password: `localdev`. Other services on this Compose network connect to `clickhouse:8123` or `clickhouse:9000`.
 
-Версию образа, базу, учётные данные и порты можно переопределить переменными окружения `CLICKHOUSE_*`, указанными в [docker-compose.yml](docker-compose.yml). Данные хранятся в volume `clickhouse_data` и сохраняются после `docker compose down`.
+The image version, database, credentials, and ports can be overridden through the `CLICKHOUSE_*` environment variables listed in [docker-compose.yml](docker-compose.yml). Data is stored in the `clickhouse_data` volume and remains after `docker compose down`.
 
-Для AI researcher добавлен официальный `mcp-clickhouse` версии `0.6.0`.
-После настройки двух секретов в локальном `.env` запустите:
+The official `mcp-clickhouse` version `0.6.0` has been added for the AI researcher.
+After configuring the two secrets in your local `.env`, run:
 
 ```bash
 docker compose --profile mcp up -d --build --wait mcp-clickhouse
 docker compose exec -T mcp-clickhouse python /app/smoke.py
 ```
 
-MCP endpoint: `http://127.0.0.1:8000/mcp`, транспорт Streamable HTTP,
-авторизация `Authorization: Bearer <CLICKHOUSE_MCP_AUTH_TOKEN>`.
-Сервер использует отдельного пользователя ClickHouse только для чтения.
-Настройка, подключение researcher и примеры запросов: [MCP ClickHouse](docs/MCP_CLICKHOUSE.md).
+MCP endpoint: `http://127.0.0.1:8000/mcp`; transport: Streamable HTTP;
+authentication: `Authorization: Bearer <CLICKHOUSE_MCP_AUTH_TOKEN>`.
+The server uses a dedicated read-only ClickHouse user.
+Setup, researcher connection, and query examples: [MCP ClickHouse](docs/MCP_CLICKHOUSE.md).
 
-Схемы и девять представлений для метрик, графиков, шаблонов и инцидентов создаёт
-`clickhouse-init`. Для существующей базы: `docker compose run --rm clickhouse-init`.
-Покрытие UI и семантика показателей: [агрегаты ClickHouse](docs/UI_AGGREGATES.md).
+`clickhouse-init` creates the schemas and nine views for metrics, charts, templates, and incidents.
+For an existing database: `docker compose run --rm clickhouse-init`.
+UI coverage and metric semantics: [ClickHouse aggregates](docs/UI_AGGREGATES.md).
 
-UI можно запустить отдельно, без базы и MCP:
+The UI can be launched separately, without the database or MCP:
 
 ```bash
 docker compose up -d --build --wait ui
 ```
 
-Он будет доступен на `http://localhost:3000`. Без Analytics показывается состояние недоступности данных. Для просмотра инцидентов запустите также `analytics` и `clickhouse`, импортируйте логи и выполните `log_analytics run`: [пошаговая интеграция](docs/DASHBOARD_INTEGRATION.md). Просмотр карточек и исходных строк не требует OpenAI. Для чата задайте `OPENAI_API_KEY`; для дополнительного исследования через MCP — `CLICKHOUSE_MCP_PASSWORD` и `CLICKHOUSE_MCP_AUTH_TOKEN` в локальном `.env`. Серверный OpenAI Agents SDK подключается напрямую к `mcp-clickhouse` по `MCP_SERVER_URL`; ключи и результаты MCP не передаются браузеру напрямую.
+It will be available at `http://localhost:3000`. Without Analytics, it shows a data-unavailable state. To view incidents, also start `analytics` and `clickhouse`, import logs, and run `log_analytics run`: [step-by-step integration](docs/DASHBOARD_INTEGRATION.md). Viewing incident cards and source lines does not require OpenAI. For chat, set `OPENAI_API_KEY`; for additional research through MCP, set `CLICKHOUSE_MCP_PASSWORD` and `CLICKHOUSE_MCP_AUTH_TOKEN` in the local `.env`. The server-side OpenAI Agents SDK connects directly to `mcp-clickhouse` via `MCP_SERVER_URL`; MCP keys and results are not sent directly to the browser.
 
-Все сервисы запускаются одной командой:
+Start all services with a single command:
 
 ```bash
 docker compose --profile mcp up -d --build --wait

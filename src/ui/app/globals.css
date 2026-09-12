@@ -232,12 +232,18 @@ h1 { margin: 9px 0 7px; font-size: clamp(25px, 2.25vw, 34px); line-height: 1.12;
 .stage-card strong { text-transform: capitalize; }
 .stage-card .text-button { margin-top: 7px; }
 .evidence-timeline { margin-top: 15px; }
-.evidence-row { display: block; width: 100%; padding: 12px 4px; text-align: left; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.timeline-context, .timeline-note { margin: 9px 0 0; color: var(--muted); font-size: 10px; line-height: 1.55; overflow-wrap: anywhere; }
+.timeline-context code { color: #4b5d69; font: 600 10px "JetBrains Mono", monospace; }
+.timeline-note { margin-top: 13px; }
+.evidence-row { display: grid; width: 100%; grid-template-columns: 190px minmax(0, 1fr); column-gap: 13px; padding: 13px 4px; text-align: left; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .evidence-row:hover { background: #f6f9fb; }
-.evidence-row time, .evidence-row strong, .evidence-row span, .evidence-row small { display: block; margin-bottom: 5px; }
-.evidence-row time, .evidence-row small { color: var(--muted); font-size: 10px; }
+.evidence-row time { padding-top: 2px; color: var(--muted); font: 500 10px "JetBrains Mono", monospace; }
+.event-main { min-width: 0; }
+.event-main strong, .event-main > span { display: block; }
 .evidence-row strong { font-size: 11px; }
-.evidence-row span { font: 11px/1.5 "JetBrains Mono", monospace; }
+.event-main > span { margin-top: 5px; font: 11px/1.5 "JetBrains Mono", monospace; }
+.evidence-row small { grid-column: 2; margin-top: 6px; color: var(--muted); font-size: 10px; }
+.undated-heading { margin: 20px 0 0; font-size: 13px; }
 .source-panel { padding: 20px; font-size: 12px; scroll-margin-top: 80px; }
 .raw-record { overflow-x: auto; padding: 16px; border-radius: 8px; color: #dce7ed; background: var(--sidebar); font: 11px/1.7 "JetBrains Mono", monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 #timeline, #incident-detail { scroll-margin-top: 80px; }
@@ -249,4 +255,4 @@ h1 { margin: 9px 0 7px; font-size: clamp(25px, 2.25vw, 34px); line-height: 1.12;
 .context-chip { max-width: 100%; overflow-wrap: anywhere; }
 button:disabled { cursor: default; opacity: .5; }
 @media (min-width: 901px) { .workspace { grid-template-columns: minmax(0, 1fr) 330px; } }
-@media (max-width: 620px) { .stage-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .incident-row { gap: 7px; padding: 12px 8px; } }
+@media (max-width: 620px) { .stage-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .incident-row { gap: 7px; padding: 12px 8px; } .evidence-row { grid-template-columns: 1fr; row-gap: 7px; } .evidence-row small { grid-column: 1; margin-top: 0; } }
